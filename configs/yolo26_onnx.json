@@ -1,0 +1,61 @@
+{
+    "model_path": "/home/jcx/data/onnx/modified_yolo26x_ultralytics.onnx",
+    "EngineConfig": {
+      "engine_type": "onnxruntime",
+      "device_type": "cpu or gpu",
+      "device_id": 0,
+      "num_threads": 4
+    },
+    "AlgorithmConfig": {
+      "mean": [0.0, 0.0, 0.0],
+      "std": [0.003921569, 0.003921569, 0.003921569],
+      "stride": [8, 16, 32],
+      "class_num": 80,
+      "class_names": ["person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"],
+      "conf_threshold": 0.5,
+      "min_size_w": 15,
+      "min_size_h": 20,
+      "multi_threshold": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
+    },
+    "ModelConfig": {
+      "releases": "yolov26n_ultralytics",
+      "model_name":"Yolo26",
+      "version": "remove_head",
+      "inputs": [
+        {
+          "name": "images",
+          "width": 640,
+          "height": 640,
+          "channel": 3,
+          "format": "NCHW",
+          "precision": "uint8"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "output_0",
+          "width": 80,
+          "height": 80,
+          "channel": 84,
+          "format": "NCHW",
+          "precision": "float32"
+        },
+        {
+          "name": "output_1",
+          "width": 40,
+          "height": 40,
+          "channel": 84,
+          "format": "NCHW",
+          "precision": "float32"
+        },
+        {
+          "name": "output_2",
+          "width": 20,
+          "height": 20,
+          "channel": 84,
+          "format": "NCHW",
+          "precision": "float32"
+        }
+      ]
+    }
+  }

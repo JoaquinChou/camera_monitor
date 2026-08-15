@@ -1,0 +1,75 @@
+##################################################
+# Python build tools
+##################################################
+
+pip
+setuptools
+wheel
+
+
+##################################################
+# PyTorch CUDA 12.1
+##################################################
+
+torch
+torchvision
+torchaudio
+
+
+##################################################
+# ONNX Runtime CUDA 12
+# Install separately:
+# uv pip install onnxruntime-gpu==1.18.0 \
+# --index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/
+##################################################
+
+# onnxruntime-gpu installed separately
+
+##################################################
+# Transformer / LLM ecosystem
+##################################################
+
+transformers
+accelerate
+
+# sentencepiece
+protobuf
+
+safetensors
+huggingface-hub
+
+
+##################################################
+# Scientific computing
+##################################################
+
+numpy==1.26.4
+scipy==1.13.1
+scikit-learn==1.5.2
+pandas==2.2.3
+
+
+##################################################
+# CUDA extension build
+##################################################
+
+ninja
+cmake
+packaging
+
+
+##################################################
+# Distributed computing
+##################################################
+
+mpi4py
+
+
+##################################################
+# Utilities
+##################################################
+
+pyyaml
+tqdm
+requests
+psutil

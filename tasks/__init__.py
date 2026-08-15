@@ -1,0 +1,2 @@
+from .illegal_recognition import IllegalRecognitionTask
+from .multi_detection import MultiDetectionTask
