@@ -1,0 +1,11 @@
+{
+    "multi_detect": "/home/jcx/code/camera_monitor/configs/yolo26_onnx.json",
+    "fishing_vllm_recognition": {
+        "base_url": "http://localhost:7864",
+        "model": "Qwen3-VL-8B-Instruct",
+        "max_infer_num": 8,
+        "max_tokens": 512,
+        "temperature": 0.7,
+        "enable_thinking": false
+    }
+}
