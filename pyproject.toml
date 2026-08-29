@@ -18,5 +18,6 @@ requires-python = ">=3.9"
 packages = [
     "models",
     "utils",
+    "system_app",
     "tasks"
 ]
