@@ -1,2 +1,2 @@
-from .illegal_recognition import IllegalRecognitionTask
+from .fishing_recognition import FishingRecognitionTask
 from .multi_detection import MultiDetectionTask

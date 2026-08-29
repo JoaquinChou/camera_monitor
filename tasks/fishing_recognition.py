@@ -49,7 +49,7 @@ Now, analyze the provided image sequence and return your judgment in the specifi
 USER_PROMPT = ""
 
 
-class IllegalRecognitionTask:
+class FishingRecognitionTask:
     DEFAULT_ERROR = {
         "reasoning": "Failed to parse model response or invalid output format.",
         "answer": "No"
