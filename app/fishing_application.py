@@ -5,7 +5,8 @@ import time
 from models import Yolo26Detection, Qwen3VLClient
 from tasks import FishingRecognitionTask
 from utils import (Camera, FrameInfo, FrameResult, VideoCache,
-                   logger, get_outer_bbox, expand_bbox_crop, write_json)
+                   logger, get_outer_bbox, expand_bbox_crop, write_json,
+                   encode_image_to_base64)
 from system_app import SystemApp
 
 
@@ -17,6 +18,7 @@ class Fishing:
 
     def __init__(self, config_path: str, gpu_id: int = 0) -> None:
         self.fishing_session = None
+        self.fishing_task = None
         self.frames_cache: List[FrameInfo] = []
         self.model_sessions = self.init_model_sessions(config_path, gpu_id)
         self.system_cache = VideoCache()
@@ -24,7 +26,6 @@ class Fishing:
         self.key_frames = []
         self.key_frame_ids = []
         self.last_collect_time = -1.0        
-        self.fishing_task = None            
         
     
     def init_model_sessions(self, config_path: str, gpu_id: int = 0) -> dict:
@@ -91,22 +92,22 @@ class Fishing:
             return
         
         # time gap: 2fps(0.5s)
-        if self.last_collect_time >= 0 and (current_frame.timestamp - self.last_collect_time) < self.gap_time:
-            return
+        # if self.last_collect_time >= 0 and (current_frame.timestamp - self.last_collect_time) < self.gap_time:
+        #     return
 
-        bboxes = [obj.bbox for obj in current_frame.all_objects]
-        bbox_coords = [b[:4] for b in bboxes if len(b) >= 4]
-        if not bbox_coords:
-            return
-        outer_bbox = get_outer_bbox(bbox_coords)
-        if outer_bbox is None:
-            return
+        # bboxes = [obj.bbox for obj in current_frame.all_objects]
+        # bbox_coords = [b[:4] for b in bboxes if len(b) >= 4]
+        # if not bbox_coords:
+        #     return
+        # outer_bbox = get_outer_bbox(bbox_coords)
+        # if outer_bbox is None:
+        #     return
 
-        # expand and crop
-        cropped_img = expand_bbox_crop(current_frame.frame_data, outer_bbox, scale=self.expand_scale)
-        if cropped_img is None or cropped_img.size == 0:
+        # # expand and crop
+        # cropped_img = expand_bbox_crop(current_frame.frame_data, outer_bbox, scale=self.expand_scale)
+        # if cropped_img is None or cropped_img.size == 0:
             return
-        self.key_frames.append(cropped_img)
+        self.key_frames.append(current_frame.frame_data)
         self.key_frame_ids.append(current_frame.frame_index)
         self.last_collect_time = current_frame.timestamp
 
@@ -116,7 +117,9 @@ class Fishing:
 
     def _vlm_infer(self):
         start_time = time.time()
-        result = self.fishing_task.run(self.key_frames, **self.fishing_session["default_params"])
+        key_frames_b64 = [encode_image_to_base64(key_frame) for key_frame in self.key_frames]
+
+        result = self.fishing_task.run(key_frames_b64, **self.fishing_session["default_params"])
         end_time = time.time()
         logger.info(f"VLM request time: {end_time - start_time} seconds")
         logger.info("*" * 20 + f"VLM Processing frames id {self.key_frame_ids} " + "*" * 20)

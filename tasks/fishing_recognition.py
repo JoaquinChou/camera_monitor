@@ -30,11 +30,11 @@ Reasoning Steps:
 
 Output Format:
 You must output a valid JSON object with exactly two fields:
-- "reasoning": a string containing your detailed analysis and evidence, explaining what you observed and why you reached your conclusion.
+- "reasoning": a concise string (at most 50 words) containing your analysis and evidence, explaining what you observed and why you reached your conclusion.
 - "answer": a string containing exactly "Yes" or "No", indicating whether illegal fishing activity is detected.
 
 Example Output:
-{"reasoning": "The image sequence shows a small vessel with no visible registration markings. A large net is being deployed from the stern, with the vessel moving slowly in a straight line—consistent with trawling activity. Multiple individuals on board are handling net lines. The water shows significant disturbance behind the vessel. Based on the gear type and operational pattern, this appears to be illegal trawling in a restricted area.", "answer": "Yes"}
+{"reasoning": "A small vessel with no markings deploys a large net while moving slowly – consistent with trawling. Crew handling lines and water disturbance suggest illegal trawling in a restricted area.", "answer": "Yes"}
 
 Critical Requirements:
 - Base your judgment solely on visual evidence present in the image frames.
