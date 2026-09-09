@@ -31,7 +31,7 @@ class FrameInfo:
 @dataclass
 class FrameResult:
     frame_index: int
-    all_objects: List[List] = field(default_factory=list),
+    all_objects: List[List] = field(default_factory=list)
     recognition: List[Dict] = field(default_factory=list)
     def to_dict(self):
         return {
@@ -60,7 +60,7 @@ class VideoCache:
 class Camera():
     VIDEO_RECORD_START = 1
     VIDEO_RECORD_END = 0
-    CameraStatus = VIDEO_RECORD_END,
+    CameraStatus = VIDEO_RECORD_END
     
     @classmethod
     def get_camera_status(cls):
@@ -70,6 +70,7 @@ class Camera():
     def set_camera_status(cls, status=None):
         if status is None:
             status = cls.VIDEO_RECORD_END
+        cls.CameraStatus = status
     
     @classmethod
     def read_frame_by_video(cls, video_path):

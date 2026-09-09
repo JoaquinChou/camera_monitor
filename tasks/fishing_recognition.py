@@ -4,7 +4,7 @@ from models import Qwen3VLClient
 from utils import extract_json
 
 
-SYSTEM_PROMPT = """"
+SYSTEM_PROMPT = """
 You are an intelligent fishery surveillance analyst for the Yangtze River Fishing Ban Enforcement System. Your task is to analyze the provided sequence of image frames and determine whether illegal fishing activities are occurring.
 
 Task Description:

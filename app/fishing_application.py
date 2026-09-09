@@ -5,8 +5,7 @@ import time
 from models import Yolo26Detection, Qwen3VLClient
 from tasks import FishingRecognitionTask
 from utils import (Camera, FrameInfo, FrameResult, VideoCache,
-                   logger, get_outer_bbox, expand_bbox_crop, write_json,
-                   encode_image_to_base64)
+                   logger, write_json, encode_image_to_base64, read_json)
 from system_app import SystemApp
 
 
@@ -34,15 +33,16 @@ class Fishing:
         multi_detect_config = config.get("multi_detect")
         if multi_detect_config:
             yolo26Detection = Yolo26Detection(multi_detect_config, gpu_id=gpu_id)
-            yolo26Detection.onnx_init()
             logger.info(f"Multi detect model initialized with config: {multi_detect_config}")
             model_session_dict["multi_detect"] = yolo26Detection
 
         vllm_config = config.get("fishing_vllm_recognition")
         if vllm_config:
+            base_url = os.environ.get("VLLM_BASE_URL", vllm_config["base_url"])
+            model = os.environ.get("VLLM_MODEL", vllm_config.get("model"))
             client = Qwen3VLClient(
-                base_url=vllm_config["base_url"],
-                model=vllm_config.get("model"),
+                base_url=base_url,
+                model=model,
             )
             self.fishing_session = {
                 "client": client,
@@ -91,22 +91,6 @@ class Fishing:
             or not current_frame.all_objects):
             return
         
-        # time gap: 2fps(0.5s)
-        # if self.last_collect_time >= 0 and (current_frame.timestamp - self.last_collect_time) < self.gap_time:
-        #     return
-
-        # bboxes = [obj.bbox for obj in current_frame.all_objects]
-        # bbox_coords = [b[:4] for b in bboxes if len(b) >= 4]
-        # if not bbox_coords:
-        #     return
-        # outer_bbox = get_outer_bbox(bbox_coords)
-        # if outer_bbox is None:
-        #     return
-
-        # # expand and crop
-        # cropped_img = expand_bbox_crop(current_frame.frame_data, outer_bbox, scale=self.expand_scale)
-        # if cropped_img is None or cropped_img.size == 0:
-            return
         self.key_frames.append(current_frame.frame_data)
         self.key_frame_ids.append(current_frame.frame_index)
         self.last_collect_time = current_frame.timestamp
@@ -186,12 +170,10 @@ class Fishing:
 
 
 if __name__ == "__main__":
-    from utils import read_json
-
-    data_path = "/home/jcx/code/camera_monitor/configs/test_data.json"
-    config_path = "/home/jcx/code/camera_monitor/configs/fishing_app.json"
-    result_path = "/home/jcx/code/camera_monitor/output/fishing_res"
-    gpu_id = 2
+    data_path = os.environ.get("DATA_CONFIG", "/app/configs/test_data.json")
+    config_path = os.environ.get("APP_CONFIG", "/app/configs/fishing_app.json")
+    result_path = os.environ.get("RESULT_DIR", "/app/output/fishing_res")
+    gpu_id = int(os.environ.get("GPU_ID", "0"))
     data_list = read_json(data_path)
     fishing = Fishing(config_path, gpu_id)
     for video_path in data_list:
