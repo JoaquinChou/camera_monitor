@@ -79,19 +79,20 @@ def get_outer_bbox(bboxes: List) -> List:
 
 def expand_bbox_crop(image: np.ndarray, bbox, scale: float = 1.2, fill_color=(114, 114, 114)):
     """
-    将bbox向外扩scale倍（宽高各乘scale），从原图中裁剪出扩展区域，超出边界用fill_color填充。
+    Expand the bbox by `scale` (width/height each multiplied), crop that region
+    from the image, and pad out-of-bound areas with `fill_color`.
 
     Args:
-        image: np.ndarray, shape (H, W, C)，BGR或RGB均可
-        bbox: [x1, y1, x2, y2]，支持int或float
-        scale: 扩展倍数，默认1.2
-        fill_color: 填充颜色，默认为(114,114,114)（灰色）
+        image: np.ndarray, shape (H, W, C), BGR or RGB
+        bbox: [x1, y1, x2, y2], int or float
+        scale: expansion ratio, default 1.2
+        fill_color: pad color, default (114,114,114) gray
 
     Returns:
-        np.ndarray: 裁剪后的图像块，尺寸为 (new_h, new_w, C)
+        np.ndarray: cropped patch, shape (new_h, new_w, C)
     """
     x1, y1, x2, y2 = bbox
-    # 计算中心与宽高
+    # Center and size
     cx = (x1 + x2) / 2.0
     cy = (y1 + y2) / 2.0
     w = x2 - x1
@@ -100,13 +101,13 @@ def expand_bbox_crop(image: np.ndarray, bbox, scale: float = 1.2, fill_color=(11
     new_w = w * scale
     new_h = h * scale
 
-    # 扩展后的左上角和右下角（浮点）
+    # Expanded corners (float)
     new_x1 = cx - new_w / 2.0
     new_y1 = cy - new_h / 2.0
     new_x2 = cx + new_w / 2.0
     new_y2 = cy + new_h / 2.0
 
-    # 转为整数（四舍五入）
+    # Round to int
     x1_int = int(round(new_x1))
     y1_int = int(round(new_y1))
     x2_int = int(round(new_x2))
@@ -115,22 +116,22 @@ def expand_bbox_crop(image: np.ndarray, bbox, scale: float = 1.2, fill_color=(11
     out_w = x2_int - x1_int
     out_h = y2_int - y1_int
 
-    # 如果扩展后尺寸非正，返回原图或空？（这里返回原图，但实际不应该发生）
+    # Non-positive size: return the original image (should not happen)
     if out_w <= 0 or out_h <= 0:
         return image
 
-    # 创建填充图像
+    # Padded output image
     out_img = np.full((out_h, out_w, image.shape[2]), fill_color, dtype=image.dtype)
 
-    # 计算原图中有效区域（与图像边界交集）
+    # Valid source region (intersection with image bounds)
     src_x1 = max(0, x1_int)
     src_y1 = max(0, y1_int)
     src_x2 = min(image.shape[1], x2_int)
     src_y2 = min(image.shape[0], y2_int)
 
-    # 若存在有效区域，则复制
+    # Copy if a valid region exists
     if src_x2 > src_x1 and src_y2 > src_y1:
-        # 在目标图像中的对应起始位置
+        # Offset of the region inside the output image
         dst_x1 = src_x1 - x1_int
         dst_y1 = src_y1 - y1_int
         dst_x2 = dst_x1 + (src_x2 - src_x1)
