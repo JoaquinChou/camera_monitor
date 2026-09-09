@@ -1,71 +1,77 @@
-# 基于官方 nvidia/cuda 镜像，指定 CUDA 版本 12.1
-FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04
+# =============================================================================
+# camera_monitor - ONNX(GPU) detection + Qwen3-VL(HTTP) recognition image
+#
+# Key points for GPU inference:
+#   1. Base image nvidia/cuda:12.4.1-base-ubuntu22.04 only ships cudart; add:
+#        - cuda-libraries-12-4  -> cublas / cublasLt / cufft / curand / cusolver ...
+#        - libcudnn8 (8.9.7)    -> cuDNN required by the onnxruntime-gpu CUDA12 build
+#   2. onnxruntime-gpu must be the CUDA 12 build (1.18.0, from the onnxruntime-cuda-12
+#      feed), NOT the PyPI default 1.16.x/1.18.x (CUDA 11 build, missing libcublasLt.so.11).
+#   3. Install only the runtime deps the app actually imports; drop training/serving-only
+#      torch / transformers / flash-attn / tensorrt_llm / nvidia-ammo / mpi4py.
+#
+# Run example (GPU passthrough + data/model/output mounts; GPU index starts at 0):
+#   docker run --rm --gpus '"device=0"' \
+#       -v $PWD/data:/app/data -v $PWD/output:/app/output \
+#       -v /home/jcx/data/onnx:/app/onnx \
+#       camera_monitor:cuda12
+# =============================================================================
+FROM nvidia/cuda:12.4.1-base-ubuntu22.04
 
-# 设置环境变量以确保安装过程中的一些参数一致
-ENV DEBIAN_FRONTEND=noninteractive
+# PYTHONPATH=/app makes the top-level packages (models/utils/tasks/system_app)
+# importable inside the container -- equivalent to `pip install -e .` but with no
+# install step.
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# 更新并安装必要的包，包括 SSH 服务
-RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    build-essential \
-    curl \
-    openssh-server \
-    git \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update \
-    && mkdir /var/run/sshd
+# System deps + CUDA math libs + cuDNN (NVIDIA apt repo ships with the base image)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        ffmpeg \
+        libgl1 \
+        libglib2.0-0 \
+        python3 \
+        python3-pip \
+        cuda-libraries-12-4 \
+        libcudnn8 \
+    && rm -rf /var/lib/apt/lists/*
 
-# 安装 Python 3.10 和 pip
-RUN apt-get install -y python3.10 python3.10-dev python3.10-distutils \
-    && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 \
-    && apt-get install -y sudo
+# All runtime PyPI deps in one shot, pinned to the validated set.
+# Note: opencv-python 5.x forces numpy>=2 (and needs Qt5) on Python>=3.9, which
+# conflicts with onnxruntime 1.18 (numpy 1.x); use headless 4.x instead.
+RUN python3 -m pip install --upgrade pip \
+    && python3 -m pip install \
+        numpy==1.26.4 \
+        scipy==1.13.1 \
+        opencv-python-headless==4.10.0.84 \
+        requests==2.34.2 \
+        loguru==0.7.3 \
+        flatbuffers==25.12.19 \
+        protobuf==7.36.1 \
+        sympy==1.14.0 \
+        coloredlogs==15.0.1 \
+        packaging==26.3
 
-# 设置 Python3.10 为默认版本
-RUN update-alternatives --install /usr/bin/python3 python /usr/bin/python3.10 1
-RUN ln -s /usr/bin/python3.10 /usr/bin/python
+# onnxruntime-gpu: CUDA 12 build.
+# --index-url targets the CUDA12 feed only; --no-deps avoids the PyPI CUDA11 1.18.0.
+RUN python3 -m pip install --no-deps \
+        --index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/ \
+        onnxruntime-gpu==1.18.0
 
-# 安装其他必需的 Python 包
-RUN pip install --upgrade pip setuptools wheel jupyterlab
+WORKDIR /app
 
-# 安装 git 和 ffmpeg（git 已装，但保留原样）
-RUN apt-get install -y git ffmpeg
+# Copy app code (data/models/output are mounted as volumes, not baked in)
+COPY app         /app/app
+COPY models      /app/models
+COPY tasks       /app/tasks
+COPY utils       /app/utils
+COPY system_app  /app/system_app
+COPY vis         /app/vis
+COPY configs     /app/configs
+COPY test        /app/test
 
-# 安装 MPI 库
-RUN apt-get install -y libmpich-dev libopenmpi-dev
-
-# 清理不必要的缓存以减小镜像大小
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# 切换默认工作目录
-WORKDIR /workspace
-
-# 允许root用户登录
-RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    mkdir -p /tensorboard/logs/fit
-
-# 软链接（可能不存在 conda，忽略错误）
-RUN if [ -f /opt/conda/bin/jupyter ]; then ln -s /opt/conda/bin/jupyter /usr/bin/jupyter; fi
-RUN if [ -f /opt/conda/bin/tensorboard ]; then ln -s /opt/conda/bin/tensorboard  /usr/bin/tensorboard; fi
-
-# ============ 新增内容开始 ============
-# 安装 openmpi-bin 和 git-lfs（libmpich-dev 和 libopenmpi-dev 已装，但这里重新安装确保存在）
-RUN apt-get update && apt-get install -y \
-    libmpich-dev \
-    openmpi-bin \
-    libopenmpi-dev \
-    git-lfs \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# 设置 LD_LIBRARY_PATH（永久生效）
-ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu
-
-# 安装 NVIDIA 相关 Python 包及 flash-attn
-RUN pip install tensorrt_llm==0.11.0 -U --extra-index-url https://pypi.nvidia.com --no-cache-dir \
-    && pip install nvidia-ammo==0.9.5 \
-    && pip install onnxruntime-gpu==1.18.0 --index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/ \
-    && pip install flash-attn --no-cache-dir --no-build-isolation
-# ============ 新增内容结束 ============
-
-# Expose Jupyter port & cmd
-CMD /bin/bash -c "if [ -z \"${aidc_ssh_password}\" ]; then echo 'ERROR: aidc_ssh_password must be set!' && exit 1; fi && echo 'root:${aidc_ssh_password}' | chpasswd && /usr/sbin/sshd -D"
+CMD ["python3", "app/fishing_application.py"]

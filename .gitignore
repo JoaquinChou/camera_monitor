@@ -1,8 +1,8 @@
-
 .venv/
 data/
 output/
 logs/
+onnx
 
 __pycache__/
 *.egg-info/
