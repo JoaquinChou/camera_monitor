@@ -18,8 +18,9 @@ def test_single_img(config_path, img_path, output_path, gpu_id):
 
 
 if __name__ == "__main__":
-    config_path = "./configs/yolo26_onnx.json"
-    img_path = "./data/images/test_frame_at_9m10s.jpg"
-    output_path = "./output/images/test_frame_at_9m10s_res.jpg"
-    gpu_id = 1
+    import os
+    config_path = os.environ.get("MODEL_CONFIG", "/app/configs/yolo26_onnx.json")
+    img_path = os.environ.get("INPUT_IMAGE", "/app/data/images/test_frame_at_9m10s.jpg")
+    output_path = os.environ.get("OUTPUT_IMAGE", "/app/output/images/test_frame_at_9m10s_res.jpg")
+    gpu_id = int(os.environ.get("GPU_ID", "0"))
     test_single_img(config_path, img_path, output_path, gpu_id)

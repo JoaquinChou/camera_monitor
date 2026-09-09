@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# =============================================================================
+# run_infer_mp.sh - multi-process end-to-end inference (parallel across videos)
+#
+# Splits the video list into NUM_PROCESSES workers (round-robin); worker i is
+# bound to GPU_IDS[i % len(GPU_IDS)]. Container is removed on exit (--rm).
+#
+# Overridable env vars (all have defaults):
+#   IMAGE         image name, default camera_monitor:cuda12
+#   HOST_DATA     host data dir, default <repo>/data
+#   HOST_MODELS   host ONNX model dir, default <repo>/onnx
+#   HOST_OUTPUT   host output dir, default <repo>/output
+#   NUM_PROCESSES number of worker processes, default 8
+#   GPU_IDS       comma-separated GPU indices to use, default 2,3,4,5
+#   VLLM_BASE_URL vLLM endpoint, default http://localhost:7864
+#   VLLM_MODEL    model name, default Qwen3-VL-8B-Instruct
+#   DATA_CONFIG   video list config (container path), default /app/configs/test_data.json
+#   APP_CONFIG    main config (container path), default /app/configs/fishing_app.json
+#   RESULT_DIR    result output dir (container path), default /app/output/fishing_res
+# =============================================================================
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+IMAGE="${IMAGE:-camera_monitor:cuda12}"
+HOST_DATA="${HOST_DATA:-${REPO_DIR}/data}"
+HOST_MODELS="${HOST_MODELS:-${REPO_DIR}/onnx}"
+HOST_OUTPUT="${HOST_OUTPUT:-${REPO_DIR}/output}"
+
+NUM_PROCESSES="${NUM_PROCESSES:-8}"
+GPU_IDS="${GPU_IDS:-2,3,4,5}"
+VLLM_BASE_URL="${VLLM_BASE_URL:-http://localhost:7864}"
+VLLM_MODEL="${VLLM_MODEL:-Qwen3-VL-8B-Instruct}"
+DATA_CONFIG="${DATA_CONFIG:-/app/configs/test_data.json}"
+APP_CONFIG="${APP_CONFIG:-/app/configs/fishing_app.json}"
+RESULT_DIR="${RESULT_DIR:-/app/output/fishing_res}"
+
+docker run --rm --gpus all --network host \
+    -v "${HOST_DATA}:/app/data" \
+    -v "${HOST_MODELS}:/app/onnx:ro" \
+    -v "${HOST_OUTPUT}:/app/output" \
+    -e NUM_PROCESSES="${NUM_PROCESSES}" \
+    -e GPU_IDS="${GPU_IDS}" \
+    -e VLLM_BASE_URL="${VLLM_BASE_URL}" \
+    -e VLLM_MODEL="${VLLM_MODEL}" \
+    -e DATA_CONFIG="${DATA_CONFIG}" \
+    -e APP_CONFIG="${APP_CONFIG}" \
+    -e RESULT_DIR="${RESULT_DIR}" \
+    "${IMAGE}" python3 app/parallel_runner.py

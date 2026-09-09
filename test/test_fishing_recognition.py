@@ -6,11 +6,13 @@ from utils import encode_image_to_base64, read_img
 
 
 def test_img_sequence():
-    base_url = "http://localhost:7864"
-    model = "Qwen3-VL-8B-Instruct"
-    imgs_path = [
-        "./data/images/test_frame_at_9m10s.jpg",
-        "./data/images/test_frame_at_9m11s.jpg"]
+    import os
+    base_url = os.environ.get("VLLM_BASE_URL", "http://localhost:7864")
+    model = os.environ.get("VLLM_MODEL", "Qwen3-VL-8B-Instruct")
+    imgs_env = os.environ.get("INPUT_IMAGES", "")
+    imgs_path = ([p.strip() for p in imgs_env.split(",") if p.strip()] if imgs_env else [
+        "/app/data/images/test_frame_at_9m10s.jpg",
+        "/app/data/images/test_frame_at_9m11s.jpg"])
 
 
     client = Qwen3VLClient(base_url=base_url, model=model)

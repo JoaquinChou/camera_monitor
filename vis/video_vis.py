@@ -207,9 +207,9 @@ class VideoVisualizer:
 
 
 if __name__ == "__main__":
-    video_path = "/home/jcx/code/camera_monitor/data/videos/test_data_part_2.mp4"
-    json_path = "/home/jcx/code/camera_monitor/output/fishing_res/test_data_part_2.json"
-    output_dir = "/home/jcx/code/camera_monitor/output/videos"
+    video_path = os.environ.get("INPUT_VIDEO", "/app/data/videos/test_data_part_2.mp4")
+    json_path = os.environ.get("RESULT_JSON", "/app/output/fishing_res/test_data_part_2.json")
+    output_dir = os.environ.get("OUTPUT_DIR", "/app/output/videos")
 
     visualizer = VideoVisualizer(video_path, json_path, output_dir)
     visualizer.run()

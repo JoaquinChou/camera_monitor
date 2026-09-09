@@ -5,10 +5,11 @@ from utils import encode_image_to_base64, read_img
 
 
 def main():
+    import os
     parser = argparse.ArgumentParser(description="Test Qwen3-VL client")
-    parser.add_argument("--base-url", default="http://localhost:7864", help="vLLM server base URL")
-    parser.add_argument("--image", help="Image URL or local file path to test VLM")
-    parser.add_argument("--model", default="Qwen3-VL-8B-Instruct", help="Model name (optional)")
+    parser.add_argument("--base-url", default=os.environ.get("VLLM_BASE_URL", "http://localhost:7864"), help="vLLM server base URL")
+    parser.add_argument("--image", default=os.environ.get("INPUT_IMAGE"), help="Image URL or local file path to test VLM")
+    parser.add_argument("--model", default=os.environ.get("VLLM_MODEL", "Qwen3-VL-8B-Instruct"), help="Model name (optional)")
     args = parser.parse_args()
 
     client = Qwen3VLClient(base_url=args.base_url, model=args.model)

@@ -1,5 +1,5 @@
 {
-    "model_path": "/home/jcx/data/onnx/modified_yolo26x_ultralytics.onnx",
+    "model_path": "/app/onnx/modified_yolo26x_ultralytics.onnx",
     "EngineConfig": {
       "engine_type": "onnxruntime",
       "device_type": "cpu or gpu",

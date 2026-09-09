@@ -37,8 +37,10 @@ class Yolo26Detection:
             providers = [
                 ('CUDAExecutionProvider', {
                     'device_id': self.gpu_id,
-                    'arena_extend_strategy': 'kNextPowerOfTwo',
-                    'cudnn_conv_algo_search': 'EXHAUSTIVE',
+                    # HEURISTIC + kSameAsRequested keep the workspace small so
+                    # multiple sessions can share one GPU without OOM.
+                    'arena_extend_strategy': 'kSameAsRequested',
+                    'cudnn_conv_algo_search': 'HEURISTIC',
                     'do_copy_in_default_stream': True,
                 }),
                 'CPUExecutionProvider',

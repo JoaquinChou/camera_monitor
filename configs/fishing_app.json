@@ -1,5 +1,5 @@
 {
-    "multi_detect": "/home/jcx/code/camera_monitor/configs/yolo26_onnx.json",
+    "multi_detect": "/app/configs/yolo26_onnx.json",
     "fishing_vllm_recognition": {
         "base_url": "http://localhost:7864",
         "model": "Qwen3-VL-8B-Instruct",
