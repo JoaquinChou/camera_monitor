@@ -81,6 +81,8 @@ camera_monitor/
 - **vLLM** 服务，`Qwen3-VL-8B-Instruct` 运行在 `http://localhost:7864`（默认；否则设 `VLLM_BASE_URL`）。
 - **ONNX 模型**文件（如 `modified_yolo26x_ultralytics.onnx`）放到 `<repo>/onnx/`——
   或把 `HOST_MODELS` 指向它的实际目录。它以只读方式挂载。
+- **视频命名**：视频文件必须命名为 `YYYYMMDDHHMMSS.mp4`（录制起始时间，如
+  `20260222172410.mp4`）；不符合格式的文件名会报错。
 - **GPU**：参考环境为 8 张 RTX 3090。GPU 0/1 被 vLLM 占用；检测用 GPU 2-5（见注意事项）。
 
 ---
@@ -201,5 +203,9 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh    # 4 进程，GPU 2-5
 - **证据蒙太奇**：VLM 判定为 "Yes" 时，该批关键帧会被拼成带帧号标注的网格大图（默认 4x2），
   保存到 `<EVIDENCE_DIR>/{video}/evidence_NNN.jpg`，每个视频最多存 `evidence_num` 张。
   `evidence_num`/`evidence_cols`/`evidence_rows` 在 `fishing_app.json` 中配置。
+- **抽帧采样**：`fishing_app.json` 里的 `sample_fps` 控制每秒送多少帧给 VLM（默认 2 =
+  每 0.5s 一帧；设 0 则每帧都送）。
+- **真实时间戳**：有 recognition 的帧会带 `timestamp` 字段（真实时间 = 文件名起始时间 +
+  帧偏移）。
 - **导入机制**：镜像里通过 `PYTHONPATH=/app` 让顶层包（`models/utils/tasks/system_app`）
   可直接 import，等价于 `pip install -e .`，无需额外安装步骤。

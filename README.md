@@ -82,6 +82,8 @@ camera_monitor/
 - **vLLM** serving `Qwen3-VL-8B-Instruct` at `http://localhost:7864` (default; set `VLLM_BASE_URL` otherwise).
 - **ONNX model** file (e.g. `modified_yolo26x_ultralytics.onnx`) placed in `<repo>/onnx/`
   — or set `HOST_MODELS` to its actual directory. It is mounted read-only.
+- **Video naming**: video files must be named `YYYYMMDDHHMMSS.mp4` (the recording start
+  time, e.g. `20260222172410.mp4`); a non-conforming filename raises an error.
 - **GPUs**: 8x RTX 3090 in the reference setup. GPU 0/1 are used by vLLM; detection uses GPU 2-5 (see notes).
 
 ---
@@ -207,6 +209,10 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh          # 4 procs on GPU 2-5
   into a labeled grid image (default 4x2) and saved to `<EVIDENCE_DIR>/{video}/evidence_NNN.jpg`,
   up to `evidence_num` montages per video. `evidence_num`/`evidence_cols`/`evidence_rows`
   live in `fishing_app.json`.
+- **Frame sampling**: `sample_fps` in `fishing_app.json` controls how many frames per
+  second are sent to the VLM (default 2 = one frame every 0.5s; set 0 to send every frame).
+- **Real timestamps**: frames with recognition carry a `timestamp` field (wall-clock time
+  derived from the filename start time + frame offset).
 - **Import mechanism**: the image sets `PYTHONPATH=/app`, so the top-level packages
   (`models/utils/tasks/system_app`) are importable with no install step (equivalent to
   `pip install -e .`).
