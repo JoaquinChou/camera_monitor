@@ -43,7 +43,8 @@ usage() {
 
 test_yolo26() {
     echo "===== [test_yolo26] single-image YOLO detection ====="
-    docker run --rm --gpus all \
+    docker run --rm --user "$(id -u):$(id -g)" --gpus all \
+        -v "${REPO_DIR}:/app" \
         -v "${HOST_DATA}:/app/data" \
         -v "${HOST_MODELS}:/app/onnx:ro" \
         -v "${HOST_OUTPUT}:/app/output" \
@@ -54,7 +55,8 @@ test_yolo26() {
 
 test_multi() {
     echo "===== [test_multi_detection] single-image multi-object detection ====="
-    docker run --rm --gpus all \
+    docker run --rm --user "$(id -u):$(id -g)" --gpus all \
+        -v "${REPO_DIR}:/app" \
         -v "${HOST_DATA}:/app/data" \
         -v "${HOST_MODELS}:/app/onnx:ro" \
         -v "${HOST_OUTPUT}:/app/output" \
@@ -65,7 +67,8 @@ test_multi() {
 
 test_vlm() {
     echo "===== [test_qwen3_vl_vlm] Qwen3-VL client test ====="
-    docker run --rm --network host \
+    docker run --rm --user "$(id -u):$(id -g)" --network host \
+        -v "${REPO_DIR}:/app" \
         -v "${HOST_DATA}:/app/data" \
         -e VLLM_BASE_URL="${VLLM_BASE_URL}" \
         -e VLLM_MODEL="${VLLM_MODEL}" \
@@ -74,7 +77,8 @@ test_vlm() {
 
 test_fishing() {
     echo "===== [test_fishing_recognition] fishing recognition task test ====="
-    docker run --rm --network host \
+    docker run --rm --user "$(id -u):$(id -g)" --network host \
+        -v "${REPO_DIR}:/app" \
         -v "${HOST_DATA}:/app/data" \
         -e VLLM_BASE_URL="${VLLM_BASE_URL}" \
         -e VLLM_MODEL="${VLLM_MODEL}" \

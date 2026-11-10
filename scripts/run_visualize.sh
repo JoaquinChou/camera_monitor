@@ -23,7 +23,8 @@ INPUT_VIDEO="${INPUT_VIDEO:-/app/data/videos/test_data_part_2.mp4}"
 RESULT_JSON="${RESULT_JSON:-/app/output/fishing_res/test_data_part_2.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-/app/output/videos}"
 
-docker run --rm \
+docker run --rm --user "$(id -u):$(id -g)" \
+    -v "${REPO_DIR}:/app" \
     -v "${HOST_DATA}:/app/data" \
     -v "${HOST_OUTPUT}:/app/output" \
     -e INPUT_VIDEO="${INPUT_VIDEO}" \

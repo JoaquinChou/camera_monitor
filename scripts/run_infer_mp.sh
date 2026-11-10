@@ -17,6 +17,7 @@
 #   DATA_CONFIG   video list config (container path), default /app/configs/test_data.json
 #   APP_CONFIG    main config (container path), default /app/configs/fishing_app.json
 #   RESULT_DIR    result output dir (container path), default /app/output/fishing_res
+#   EVIDENCE_DIR  evidence output dir (container path), default /app/output/evidence
 # =============================================================================
 set -euo pipefail
 
@@ -33,8 +34,10 @@ VLLM_MODEL="${VLLM_MODEL:-Qwen3-VL-8B-Instruct}"
 DATA_CONFIG="${DATA_CONFIG:-/app/configs/test_data.json}"
 APP_CONFIG="${APP_CONFIG:-/app/configs/fishing_app.json}"
 RESULT_DIR="${RESULT_DIR:-/app/output/fishing_res}"
+EVIDENCE_DIR="${EVIDENCE_DIR:-/app/output/evidence}"
 
-docker run --rm --gpus all --network host \
+docker run --rm --user "$(id -u):$(id -g)" --gpus all --network host \
+    -v "${REPO_DIR}:/app" \
     -v "${HOST_DATA}:/app/data" \
     -v "${HOST_MODELS}:/app/onnx:ro" \
     -v "${HOST_OUTPUT}:/app/output" \
@@ -45,4 +48,5 @@ docker run --rm --gpus all --network host \
     -e DATA_CONFIG="${DATA_CONFIG}" \
     -e APP_CONFIG="${APP_CONFIG}" \
     -e RESULT_DIR="${RESULT_DIR}" \
+    -e EVIDENCE_DIR="${EVIDENCE_DIR}" \
     "${IMAGE}" python3 app/parallel_runner.py
