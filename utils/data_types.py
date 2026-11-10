@@ -33,12 +33,16 @@ class FrameResult:
     frame_index: int
     all_objects: List[List] = field(default_factory=list)
     recognition: List[Dict] = field(default_factory=list)
+    timestamp: Optional[str] = None
     def to_dict(self):
-        return {
+        result = {
             "frame_index": self.frame_index,
             "all_objects": [[obj.class_name] + obj.bbox for obj in self.all_objects],
             "recognition": self.recognition
         }
+        if self.timestamp is not None:
+            result["timestamp"] = self.timestamp
+        return result
 
 
 @dataclass

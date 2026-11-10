@@ -24,6 +24,7 @@ class Fishing:
         self.evidence_root = os.environ.get("EVIDENCE_DIR", "/app/output/evidence")
         self.evidence_dir = None
         self.evidence_saved = 0
+        self.video_start_time = None
         self.key_frames = []
         self.key_frame_ids = []
         self.last_collect_time = -1.0        
@@ -75,6 +76,7 @@ class Fishing:
         self.evidence_saved = 0
         base_name = os.path.splitext(os.path.basename(str(video_path)))[0]
         self.evidence_dir = os.path.join(self.evidence_root, base_name)
+        self.video_start_time = parse_video_start_time(str(video_path))
 
 
     @classmethod
@@ -180,10 +182,15 @@ class Fishing:
             fish_recog = finfo.recognition if finfo.recognition is not None else []
             if not isinstance(fish_recog, list):
                 fish_recog = [fish_recog]
+            timestamp = None
+            if fish_recog:
+                real_time = self.video_start_time + timedelta(seconds=finfo.timestamp)
+                timestamp = real_time.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
             frame_res = FrameResult(
                 frame_index=finfo.frame_index,
                 all_objects=finfo.all_objects,
-                recognition=fish_recog
+                recognition=fish_recog,
+                timestamp=timestamp
             )
             frames_result.append(frame_res.to_dict())
         return frames_result

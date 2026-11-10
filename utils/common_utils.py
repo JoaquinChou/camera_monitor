@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, Dict, Any, List, Tuple
 import base64
 import cv2
@@ -122,3 +123,28 @@ def extract_json(text: str) -> Optional[Dict[str, Any]]:
             except json.JSONDecodeError:
                 return None
         return None
+
+
+def parse_video_start_time(video_path: str) -> datetime:
+    """
+    Parse the video recording start time from the filename (YYYYMMDDHHMMSS).
+
+    Args:
+        video_path: path to the video file; the basename must be
+                    YYYYMMDDHHMMSS.<ext> (e.g. 20260222172410.mp4).
+
+    Returns:
+        datetime: the recording start time (naive, local).
+
+    Raises:
+        ValueError: if the basename does not match the YYYYMMDDHHMMSS format.
+    """
+    basename = os.path.basename(video_path)
+    stem = os.path.splitext(basename)[0]
+    try:
+        return datetime.strptime(stem, "%Y%m%d%H%M%S")
+    except ValueError:
+        raise ValueError(
+            f"video filename '{basename}' does not match YYYYMMDDHHMMSS format "
+            f"(e.g. 20260222172410.mp4)"
+        ) from None
