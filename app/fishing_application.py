@@ -123,16 +123,18 @@ class Fishing:
         key_frames_b64 = [encode_image_to_base64(key_frame) for key_frame in self.key_frames]
 
         result = self.fishing_task.run(key_frames_b64, **self.fishing_session["default_params"])
+        result["frame_ids"] = list(self.key_frame_ids)
         end_time = time.time()
         logger.info(f"VLM request time: {end_time - start_time} seconds")
         logger.info("*" * 20 + f"VLM Processing frames id {self.key_frame_ids} " + "*" * 20)
         if result.get("answer") == "Yes":
             self._save_evidence()
-        for idx in self.key_frame_ids:
-            for finfo in self.system_cache.frame_infos:
-                if finfo.frame_index == idx:
-                    finfo.recognition = result
-                    break
+        # Attach the batch result only to the last (representative) frame.
+        last_idx = self.key_frame_ids[-1]
+        for finfo in self.system_cache.frame_infos:
+            if finfo.frame_index == last_idx:
+                finfo.recognition = result
+                break
         self.key_frames.clear()
         self.key_frame_ids.clear()
 
