@@ -5,7 +5,8 @@ import time
 from models import Yolo26Detection, Qwen3VLClient
 from tasks import FishingRecognitionTask
 from utils import (Camera, FrameInfo, FrameResult, VideoCache,
-                   logger, write_json, encode_image_to_base64, read_json)
+                   logger, write_json, encode_image_to_base64, read_json,
+                   save_evidence_montage)
 from system_app import SystemApp
 
 
@@ -22,6 +23,9 @@ class Fishing:
         self.model_sessions = self.init_model_sessions(config_path, gpu_id)
         self.system_cache = VideoCache()
         self.system_app = SystemApp(self.model_sessions)
+        self.evidence_root = os.environ.get("EVIDENCE_DIR", "/app/output/evidence")
+        self.evidence_dir = None
+        self.evidence_saved = 0
         self.key_frames = []
         self.key_frame_ids = []
         self.last_collect_time = -1.0        
@@ -53,7 +57,10 @@ class Fishing:
                         "enable_thinking": vllm_config.get("enable_thinking", False)
                     }
                 },
-                "max_infer_num": vllm_config.get("max_infer_num", 8)
+                "max_infer_num": vllm_config.get("max_infer_num", 8),
+                "evidence_num": vllm_config.get("evidence_num", 3),
+                "evidence_cols": vllm_config.get("evidence_cols", 4),
+                "evidence_rows": vllm_config.get("evidence_rows", 2)
             }
             self.fishing_task = FishingRecognitionTask(self.fishing_session["client"])
             logger.info(f"VLLM client initialized for model: {client.model}")
@@ -64,6 +71,9 @@ class Fishing:
     def init_system_state(self, video_path) -> None:
         self.frames_cache.clear()
         self.system_cache.reset(video_path=str(video_path))
+        self.evidence_saved = 0
+        base_name = os.path.splitext(os.path.basename(str(video_path)))[0]
+        self.evidence_dir = os.path.join(self.evidence_root, base_name)
 
 
     @classmethod
@@ -107,6 +117,8 @@ class Fishing:
         end_time = time.time()
         logger.info(f"VLM request time: {end_time - start_time} seconds")
         logger.info("*" * 20 + f"VLM Processing frames id {self.key_frame_ids} " + "*" * 20)
+        if result.get("answer") == "Yes":
+            self._save_evidence()
         for idx in self.key_frame_ids:
             for finfo in self.system_cache.frame_infos:
                 if finfo.frame_index == idx:
@@ -114,6 +126,21 @@ class Fishing:
                     break
         self.key_frames.clear()
         self.key_frame_ids.clear()
+
+
+    def _save_evidence(self):
+        max_num = self.fishing_session.get("evidence_num", 3)
+        if self.evidence_saved >= max_num or self.evidence_dir is None:
+            return
+        cols = self.fishing_session.get("evidence_cols", 4)
+        rows = self.fishing_session.get("evidence_rows", 2)
+        seq = self.evidence_saved + 1
+        save_path = os.path.join(self.evidence_dir, f"evidence_{seq:03d}.jpg")
+        if save_evidence_montage(self.key_frames, self.key_frame_ids, save_path, cols, rows):
+            self.evidence_saved += 1
+            logger.info(f"Saved evidence montage {seq}/{max_num}: {save_path}")
+        else:
+            logger.warning(f"Failed to save evidence montage: {save_path}")
 
 
     def _vlm_finalize_infer(self):

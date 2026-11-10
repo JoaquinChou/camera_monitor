@@ -6,6 +6,9 @@
         "max_infer_num": 8,
         "max_tokens": 512,
         "temperature": 0.7,
-        "enable_thinking": false
+        "enable_thinking": false,
+        "evidence_num": 3,
+        "evidence_cols": 4,
+        "evidence_rows": 2
     }
 }

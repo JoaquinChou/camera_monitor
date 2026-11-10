@@ -6,3 +6,4 @@ from .detection_utils import (letterbox, sigmoid,
                               get_outer_bbox, plot_detect_results,
                               expand_bbox_crop, plot_one_box)
 from .logger import logger
+from .evidence import build_evidence_montage, save_evidence_montage
