@@ -28,7 +28,8 @@ class SystemApp:
         self.last_frame_index = frame_index
 
         logger.info("*" * 20 + f" Processing frame {frame_index} " + "*" * 20)
-        frame_info = FrameInfo(frame_index=frame_index, frame_data=frame)
+        frame_info = FrameInfo(frame_index=frame_index, frame_data=frame,
+                               timestamp=frames_cache[-1].timestamp)
 
         # 1. [[x1, y1, x2, y2, name, score]]
         start_time = time.time()

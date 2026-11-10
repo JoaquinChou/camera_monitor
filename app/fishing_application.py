@@ -1,20 +1,18 @@
 from typing import List
 import os
 import time
+from datetime import timedelta
 
 from models import Yolo26Detection, Qwen3VLClient
 from tasks import FishingRecognitionTask
 from utils import (Camera, FrameInfo, FrameResult, VideoCache,
                    logger, write_json, encode_image_to_base64, read_json,
-                   save_evidence_montage)
+                   save_evidence_montage, parse_video_start_time)
 from system_app import SystemApp
 
 
 class Fishing:
     frames_cache_size = 30
-    expand_scale = 1.2
-    gap_time = 0.5
-    # select_frame_fps = 1
 
     def __init__(self, config_path: str, gpu_id: int = 0) -> None:
         self.fishing_session = None
@@ -48,6 +46,8 @@ class Fishing:
                 base_url=base_url,
                 model=model,
             )
+            sample_fps = vllm_config.get("sample_fps", 2)
+            sample_interval = 1.0 / sample_fps if sample_fps > 0 else 0.0
             self.fishing_session = {
                 "client": client,
                 "default_params": {
@@ -58,6 +58,7 @@ class Fishing:
                     }
                 },
                 "max_infer_num": vllm_config.get("max_infer_num", 8),
+                "sample_interval": sample_interval,
                 "evidence_num": vllm_config.get("evidence_num", 3),
                 "evidence_cols": vllm_config.get("evidence_cols", 4),
                 "evidence_rows": vllm_config.get("evidence_rows", 2)
@@ -101,6 +102,12 @@ class Fishing:
             or not current_frame.all_objects):
             return
         
+        # Time-gap sampling: skip frames closer than the configured interval.
+        interval = self.fishing_session.get("sample_interval", 0.0)
+        if interval > 0 and self.last_collect_time >= 0 \
+                and (current_frame.timestamp - self.last_collect_time) < interval:
+            return
+
         self.key_frames.append(current_frame.frame_data)
         self.key_frame_ids.append(current_frame.frame_index)
         self.last_collect_time = current_frame.timestamp
