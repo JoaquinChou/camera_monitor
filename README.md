@@ -99,17 +99,20 @@ else
 fi
 ```
 
-The image bakes the code + configs into `/app`. `data/`, `output/` and the ONNX models
-are mounted at runtime (not baked in). It is based on `nvidia/cuda:12.4.1-base-ubuntu22.04`
-and installs `cuda-libraries-12-4` + `libcudnn8` + `onnxruntime-gpu==1.18.0` (CUDA 12 build),
-so ONNX runs on GPU out of the box.
+The image provides the runtime environment (CUDA / cuDNN / onnxruntime / Python deps) and
+bakes the code into `/app` as a fallback. At runtime the scripts also mount the repository
+root to `/app`, so **code and config edits apply without rebuilding the image** — rebuild
+only when the Dockerfile or dependencies change. It is based on
+`nvidia/cuda:12.4.1-base-ubuntu22.04` and installs `cuda-libraries-12-4` + `libcudnn8` +
+`onnxruntime-gpu==1.18.0` (CUDA 12 build), so ONNX runs on GPU out of the box.
 
 ---
 
 ## 5. Run
 
-All scripts use `docker run --rm` (container auto-removed on exit) and read config via
-environment variables. See [Section 6](#6-environment-variables) for the full list.
+All scripts use `docker run --rm` (container auto-removed on exit), mount the repository
+root to `/app` (live code, no rebuild), run as the host user (`--user`), and read config
+via environment variables. See [Section 6](#6-environment-variables) for the full list.
 
 ```bash
 cd <repo>/scripts
@@ -166,6 +169,7 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh          # 4 procs on GPU 2-5
 | `DATA_CONFIG` | `/app/configs/test_data.json` | infer | video list config (container path) |
 | `APP_CONFIG` | `/app/configs/fishing_app.json` | infer | main app config (container path) |
 | `RESULT_DIR` | `/app/output/fishing_res` | infer | result output dir (container path) |
+| `EVIDENCE_DIR` | `/app/output/evidence` | infer | evidence montage output dir (container path) |
 | `INPUT_VIDEO` | `/app/data/videos/test_data_part_2.mp4` | visualize | input video (container path) |
 | `RESULT_JSON` | `/app/output/fishing_res/test_data_part_2.json` | visualize | result JSON (container path) |
 | `OUTPUT_DIR` | `/app/output/videos` | visualize | output dir (container path) |
@@ -199,6 +203,10 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh          # 4 procs on GPU 2-5
   (`NUM_PROCESSES` slightly above `len(GPU_IDS)`) helps hide VLM latency.
 - **Duplicate video entries** (as in `test_data_mp.json`) make every worker write the
   same output JSON (last writer wins); real multi-video use produces one JSON per video.
+- **Evidence montages**: when the VLM answers "Yes", that batch's key frames are stitched
+  into a labeled grid image (default 4x2) and saved to `<EVIDENCE_DIR>/{video}/evidence_NNN.jpg`,
+  up to `evidence_num` montages per video. `evidence_num`/`evidence_cols`/`evidence_rows`
+  live in `fishing_app.json`.
 - **Import mechanism**: the image sets `PYTHONPATH=/app`, so the top-level packages
   (`models/utils/tasks/system_app`) are importable with no install step (equivalent to
   `pip install -e .`).

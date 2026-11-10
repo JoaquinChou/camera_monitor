@@ -98,15 +98,17 @@ else
 fi
 ```
 
-镜像把代码 + 配置固化到 `/app`；`data/`、`output/` 和 ONNX 模型在运行时挂载（不打进镜像）。
-基于 `nvidia/cuda:12.4.1-base-ubuntu22.04`，安装 `cuda-libraries-12-4` + `libcudnn8` +
-`onnxruntime-gpu==1.18.0`（CUDA 12 构建），ONNX 开箱即用 GPU 推理。
+镜像提供运行时环境（CUDA / cuDNN / onnxruntime / Python 依赖），并把代码固化到 `/app` 作为兜底。
+运行时脚本还会把仓库根目录挂载到 `/app`，因此**改代码/配置无需重建镜像**——只有 Dockerfile 或
+依赖变化时才需要重建。基于 `nvidia/cuda:12.4.1-base-ubuntu22.04`，安装 `cuda-libraries-12-4` +
+`libcudnn8` + `onnxruntime-gpu==1.18.0`（CUDA 12 构建），ONNX 开箱即用 GPU 推理。
 
 ---
 
 ## 5. 运行
 
-所有脚本都用 `docker run --rm`（容器跑完自动销毁），通过环境变量读取配置。
+所有脚本都用 `docker run --rm`（容器跑完自动销毁），挂载仓库根目录到 `/app`（代码实时生效、
+免重建），以宿主机用户身份运行（`--user`），并通过环境变量读取配置。
 完整变量见 [第 6 节](#6-环境变量)。
 
 ```bash
@@ -164,6 +166,7 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh    # 4 进程，GPU 2-5
 | `DATA_CONFIG` | `/app/configs/test_data.json` | 推理 | 视频列表配置（容器内路径）|
 | `APP_CONFIG` | `/app/configs/fishing_app.json` | 推理 | 主应用配置（容器内路径）|
 | `RESULT_DIR` | `/app/output/fishing_res` | 推理 | 结果输出目录（容器内路径）|
+| `EVIDENCE_DIR` | `/app/output/evidence` | 推理 | 证据蒙太奇输出目录（容器内路径）|
 | `INPUT_VIDEO` | `/app/data/videos/test_data_part_2.mp4` | 可视化 | 输入视频（容器内路径）|
 | `RESULT_JSON` | `/app/output/fishing_res/test_data_part_2.json` | 可视化 | 结果 JSON（容器内路径）|
 | `OUTPUT_DIR` | `/app/output/videos` | 可视化 | 输出目录（容器内路径）|
@@ -195,5 +198,8 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh    # 4 进程，GPU 2-5
   （`--max-num-seqs 8`）。略微超配（`NUM_PROCESSES` 略大于 `len(GPU_IDS)`）有助于掩盖 VLM 延迟。
 - **重复视频条目**（如 `test_data_mp.json`）会让每个 worker 写同一个输出 JSON（后写者覆盖）；
   真实多视频场景下每个视频生成独立 JSON，无冲突。
+- **证据蒙太奇**：VLM 判定为 "Yes" 时，该批关键帧会被拼成带帧号标注的网格大图（默认 4x2），
+  保存到 `<EVIDENCE_DIR>/{video}/evidence_NNN.jpg`，每个视频最多存 `evidence_num` 张。
+  `evidence_num`/`evidence_cols`/`evidence_rows` 在 `fishing_app.json` 中配置。
 - **导入机制**：镜像里通过 `PYTHONPATH=/app` 让顶层包（`models/utils/tasks/system_app`）
   可直接 import，等价于 `pip install -e .`，无需额外安装步骤。
