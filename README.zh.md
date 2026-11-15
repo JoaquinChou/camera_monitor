@@ -54,16 +54,18 @@ camera_monitor/
 │   ├── fishing_app.json         # 主应用配置（VLM 地址、multi_detect 路径）
 │   ├── yolo26_onnx.json         # YOLO 模型配置（model_path、阈值、类别）
 │   ├── test_data.json           # 视频列表（单进程）
-│   └── test_data_mp.json        # 多进程测试视频列表（8 份）
+│   └── test_data_mp.json        # 多进程测试视频列表（4 个视频）
 ├── test/
 │   ├── test_yolo26.py           # 单图 YOLO 检测
 │   ├── test_multi_detection.py  # 单图 person/boat 检测
 │   ├── test_qwen3_vl_vlm.py     # VLM 客户端测试（文本 + 可选图像）
-│   └── test_fishing_recognition.py # 钓鱼识别任务测试
+│   ├── test_fishing_recognition.py # 钓鱼识别任务测试
+│   └── test_batch_images.py     # 图片文件夹上的钓鱼识别批量评测
 ├── scripts/
 │   ├── run_infer.sh             # 单进程端到端推理
 │   ├── run_infer_mp.sh          # 多进程端到端推理
 │   ├── run_visualize.sh         # 结果可视化出片
+│   ├── run_batch_images.sh      # 图片批量评测（钓鱼数据集）
 │   └── run_test.sh              # 运行全部测试样例
 ├── Dockerfile                   # CUDA 12.4 镜像，onnxruntime-gpu 1.18（CUDA 12）
 ├── requirements.txt
@@ -83,7 +85,7 @@ camera_monitor/
   或把 `HOST_MODELS` 指向它的实际目录。它以只读方式挂载。
 - **视频命名**：视频文件必须命名为 `YYYYMMDDHHMMSS.mp4`（录制起始时间，如
   `20260222172410.mp4`）；不符合格式的文件名会报错。
-- **GPU**：参考环境为 8 张 RTX 3090。GPU 0/1 被 vLLM 占用；检测用 GPU 2-5（见注意事项）。
+- **GPU**：参考环境为 8 张 RTX 3090。GPU 0/1 被 vLLM 占用；检测默认用 GPU 2（见注意事项）。
 
 ---
 
@@ -120,18 +122,18 @@ cd <repo>/scripts
 ### 5.1 单进程推理
 
 ```bash
-./run_infer.sh                # 单卡（默认 GPU_ID=0），视频来自 test_data.json
-GPU_ID=2 ./run_infer.sh       # 用物理 GPU 2（GPU 0/1 被 vLLM 占用）
+./run_infer.sh                # 单卡（默认 GPU_ID=2），视频来自 test_data.json
 ```
 
 ### 5.2 多进程推理
 
 把视频列表按 `NUM_PROCESSES` 切分成多个 worker（轮询）；worker `i` 跑在
-`GPU_IDS[i % len(GPU_IDS)]` 上。默认：`NUM_PROCESSES=8`、`GPU_IDS=2,3,4,5`。
+`GPU_IDS[i % len(GPU_IDS)]` 上。默认：`NUM_PROCESSES=4`、`GPU_IDS=2`（从 `test_data_mp.json`
+读取视频）。
 
 ```bash
-./run_infer_mp.sh                                    # 默认（8 进程，GPU 2-5）
-NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh    # 4 进程，GPU 2-5
+./run_infer_mp.sh                                    # 默认（4 进程，GPU 2）
+GPU_IDS=2,3 NUM_PROCESSES=2 ./run_infer_mp.sh        # 2 进程，GPU 2 和 3
 ```
 
 ### 5.3 可视化
@@ -150,6 +152,29 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh    # 4 进程，GPU 2-5
 ./run_test.sh fishing        # 钓鱼识别任务测试
 ```
 
+### 5.5 图片批量评测
+
+直接在两个图片文件夹上评测钓鱼识别 VLM（每次调用一张图）：`bulao-img`（捕捞）与
+`chuidiao-img`（垂钓）。输出每个文件夹的检出率，以及总体检出率 / 总体准确率。两个文件夹
+都是**正类**——每个文件夹里 "Yes" 都是期望输出——因此没有负类样本时 Precision 无定义，
+准确率等于总体检出率。
+
+```bash
+./run_batch_images.sh
+```
+
+脚本把钓鱼数据集只读挂载到 `/app/fishing_data`，并把每张图的报告（预测 + 推理理由）写到
+`output/img_res/batch_images_results.json`。
+
+可覆盖的环境变量：
+
+- `FISHING_DATA` — 钓鱼数据集宿主机目录（默认
+  `/home/jcx/code/camera_monitor/data/fishing`，挂载到 `/app/fishing_data`）。
+- `BULAO_DIR` / `CHUIDIAO_DIR` — 图片文件夹（容器内路径；默认
+  `/app/fishing_data/bulao-img/images` 与 `/app/fishing_data/chuidiao-img/images`）。
+- `OUTPUT_JSON` — 结果路径（默认 `/app/output/img_res/batch_images_results.json`）。
+- `VLLM_BASE_URL` / `VLLM_MODEL` — vLLM 地址 / 模型名。
+
 ---
 
 ## 6. 环境变量
@@ -160,22 +185,26 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh    # 4 进程，GPU 2-5
 | `HOST_DATA` | `<repo>/data` | 全部脚本 | 宿主机数据目录（挂载到 `/app/data`）|
 | `HOST_MODELS` | `<repo>/onnx` | 推理/检测脚本 | 宿主机 ONNX 目录（只读挂载到 `/app/onnx`）|
 | `HOST_OUTPUT` | `<repo>/output` | 全部脚本 | 宿主机输出目录（挂载到 `/app/output`）|
-| `GPU_ID` | `0` | 单进程/检测测试 | 检测 GPU 序号 |
-| `GPU_IDS` | `2,3,4,5` | 多进程 | 逗号分隔的要使用的 GPU |
-| `NUM_PROCESSES` | `8` | 多进程 | worker 进程数 |
+| `GPU_ID` | `2` | 单进程/检测测试 | 检测 GPU 序号 |
+| `GPU_IDS` | `2` | 多进程 | 逗号分隔的要使用的 GPU |
+| `NUM_PROCESSES` | `4` | 多进程 | worker 进程数 |
 | `VLLM_BASE_URL` | `http://localhost:7864` | 推理/VLM 测试 | vLLM 服务地址 |
 | `VLLM_MODEL` | `Qwen3-VL-8B-Instruct` | 推理/VLM 测试 | 服务模型名 |
 | `DATA_CONFIG` | `/app/configs/test_data.json` | 推理 | 视频列表配置（容器内路径）|
 | `APP_CONFIG` | `/app/configs/fishing_app.json` | 推理 | 主应用配置（容器内路径）|
 | `RESULT_DIR` | `/app/output/fishing_res` | 推理 | 结果输出目录（容器内路径）|
 | `EVIDENCE_DIR` | `/app/output/evidence` | 推理 | 证据蒙太奇输出目录（容器内路径）|
-| `INPUT_VIDEO` | `/app/data/videos/test_data_part_2.mp4` | 可视化 | 输入视频（容器内路径）|
-| `RESULT_JSON` | `/app/output/fishing_res/test_data_part_2.json` | 可视化 | 结果 JSON（容器内路径）|
+| `INPUT_VIDEO` | `/app/data/videos/20260222172410.mp4` | 可视化 | 输入视频（容器内路径）|
+| `RESULT_JSON` | `/app/output/fishing_res/20260222172410.json` | 可视化 | 结果 JSON（容器内路径）|
 | `OUTPUT_DIR` | `/app/output/videos` | 可视化 | 输出目录（容器内路径）|
 | `MODEL_CONFIG` | `/app/configs/yolo26_onnx.json` | 检测测试 | YOLO 配置（容器内路径）|
 | `INPUT_IMAGE` | `/app/data/images/...` | 检测/VLM 测试 | 输入图片（容器内路径）|
 | `OUTPUT_IMAGE` | `/app/output/images/...` | 检测测试 | 输出图片（容器内路径）|
 | `INPUT_IMAGES` | `/app/data/images/...` | 钓鱼测试 | 逗号分隔的图片列表 |
+| `FISHING_DATA` | `/home/jcx/code/camera_monitor/data/fishing` | 批量评测 | 钓鱼数据集宿主机目录（只读挂载到 `/app/fishing_data`）|
+| `BULAO_DIR` | `/app/fishing_data/bulao-img/images` | 批量评测 | 捕捞图片文件夹（容器内路径）|
+| `CHUIDIAO_DIR` | `/app/fishing_data/chuidiao-img/images` | 批量评测 | 垂钓图片文件夹（容器内路径）|
+| `OUTPUT_JSON` | `/app/output/img_res/batch_images_results.json` | 批量评测 | 批量评测结果 JSON（容器内路径）|
 
 > `<repo>` = 仓库根目录；`HOST_DATA`/`HOST_MODELS`/`HOST_OUTPUT` 由脚本相对它自动解析，
 > 无需写绝对路径。容器内路径（`/app/...`）是镜像里固定的，不要改动。
@@ -195,10 +224,10 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh    # 4 进程，GPU 2-5
 
 ## 8. 注意事项
 
-- **GPU 布局**：GPU 0/1 被共享的 vLLM 服务占用；检测请用 GPU 2-5。
+- **GPU 布局**：GPU 0/1 被共享的 vLLM 服务占用；检测默认用 GPU 2（按可用卡设置 `GPU_ID`/`GPU_IDS`）。
 - **VLM 是共享瓶颈**：检测可随进程数并行扩展，但所有 VLM 请求都打到同一个 vLLM
   （`--max-num-seqs 8`）。略微超配（`NUM_PROCESSES` 略大于 `len(GPU_IDS)`）有助于掩盖 VLM 延迟。
-- **重复视频条目**（如 `test_data_mp.json`）会让每个 worker 写同一个输出 JSON（后写者覆盖）；
+- **重复视频条目**：若视频列表里有重复项，会让每个 worker 写同一个输出 JSON（后写者覆盖）；
   真实多视频场景下每个视频生成独立 JSON，无冲突。
 - **证据蒙太奇**：VLM 判定为 "Yes" 时，该批关键帧会被拼成带帧号标注的网格大图（默认 4x2），
   保存到 `<EVIDENCE_DIR>/{video}/evidence_NNN.jpg`，每个视频最多存 `evidence_num` 张。
@@ -207,5 +236,7 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh    # 4 进程，GPU 2-5
   每 0.5s 一帧；设 0 则每帧都送）。
 - **真实时间戳**：有 recognition 的帧会带 `timestamp` 字段（真实时间 = 文件名起始时间 +
   帧偏移）。
+- **图片批量评测**：`run_batch_images.sh` 直接把整帧交给 VLM（不走 YOLO 检测），因此它单独
+  衡量识别模型本身。两个图片文件夹都按正类处理（期望 "Yes"）；见 [5.5 节](#55-图片批量评测)。
 - **导入机制**：镜像里通过 `PYTHONPATH=/app` 让顶层包（`models/utils/tasks/system_app`）
   可直接 import，等价于 `pip install -e .`，无需额外安装步骤。

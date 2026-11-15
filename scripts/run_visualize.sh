@@ -8,8 +8,8 @@
 #   IMAGE        image name, default camera_monitor:cuda12
 #   HOST_DATA    host data dir, default <repo>/data
 #   HOST_OUTPUT  host output dir, default <repo>/output
-#   INPUT_VIDEO  input video (container path), default /app/data/videos/test_data_part_2.mp4
-#   RESULT_JSON  recognition result (container path), default /app/output/fishing_res/test_data_part_2.json
+#   INPUT_VIDEO  input video (container path), default /app/data/videos/20260222172410.mp4
+#   RESULT_JSON  recognition result (container path), default /app/output/fishing_res/20260222172410.json
 #   OUTPUT_DIR   output dir (container path), default /app/output/videos
 # =============================================================================
 set -euo pipefail
@@ -19,8 +19,8 @@ IMAGE="${IMAGE:-camera_monitor:cuda12}"
 HOST_DATA="${HOST_DATA:-${REPO_DIR}/data}"
 HOST_OUTPUT="${HOST_OUTPUT:-${REPO_DIR}/output}"
 
-INPUT_VIDEO="${INPUT_VIDEO:-/app/data/videos/test_data_part_2.mp4}"
-RESULT_JSON="${RESULT_JSON:-/app/output/fishing_res/test_data_part_2.json}"
+INPUT_VIDEO="${INPUT_VIDEO:-/app/data/videos/20260222172410.mp4}"
+RESULT_JSON="${RESULT_JSON:-/app/output/fishing_res/20260222172410.json}"
 OUTPUT_DIR="${OUTPUT_DIR:-/app/output/videos}"
 
 docker run --rm --user "$(id -u):$(id -g)" \

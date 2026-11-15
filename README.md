@@ -55,16 +55,18 @@ camera_monitor/
 │   ├── fishing_app.json         # main app config (VLM endpoint, multi_detect path)
 │   ├── yolo26_onnx.json         # YOLO model config (model_path, thresholds, classes)
 │   ├── test_data.json           # video list (single-process)
-│   └── test_data_mp.json        # video list for multi-process test (8 copies)
+│   └── test_data_mp.json        # video list for multi-process test (4 videos)
 ├── test/
 │   ├── test_yolo26.py           # single-image YOLO detection
 │   ├── test_multi_detection.py  # single-image person/boat detection
 │   ├── test_qwen3_vl_vlm.py     # VLM client test (text + optional image)
-│   └── test_fishing_recognition.py # fishing recognition task test
+│   ├── test_fishing_recognition.py # fishing recognition task test
+│   └── test_batch_images.py     # batch fishing-recognition evaluation on image folders
 ├── scripts/
 │   ├── run_infer.sh             # single-process end-to-end inference
 │   ├── run_infer_mp.sh          # multi-process end-to-end inference
 │   ├── run_visualize.sh         # draw results onto video
+│   ├── run_batch_images.sh      # batch image evaluation (fishing datasets)
 │   └── run_test.sh              # run all test examples
 ├── Dockerfile                   # CUDA 12.4 image, onnxruntime-gpu 1.18 (CUDA 12)
 ├── requirements.txt
@@ -84,7 +86,7 @@ camera_monitor/
   — or set `HOST_MODELS` to its actual directory. It is mounted read-only.
 - **Video naming**: video files must be named `YYYYMMDDHHMMSS.mp4` (the recording start
   time, e.g. `20260222172410.mp4`); a non-conforming filename raises an error.
-- **GPUs**: 8x RTX 3090 in the reference setup. GPU 0/1 are used by vLLM; detection uses GPU 2-5 (see notes).
+- **GPUs**: 8x RTX 3090 in the reference setup. GPU 0/1 are used by vLLM; detection defaults to GPU 2 (see notes).
 
 ---
 
@@ -123,18 +125,18 @@ cd <repo>/scripts
 ### 5.1 Single-process inference
 
 ```bash
-./run_infer.sh                # one GPU (default GPU_ID=0), videos from test_data.json
-GPU_ID=2 ./run_infer.sh       # use physical GPU 2 (vLLM occupies GPU 0/1)
+./run_infer.sh                # one GPU (default GPU_ID=2), videos from test_data.json
 ```
 
 ### 5.2 Multi-process inference
 
 Splits the video list across `NUM_PROCESSES` workers (round-robin); worker `i` runs on
-`GPU_IDS[i % len(GPU_IDS)]`. Defaults: `NUM_PROCESSES=8`, `GPU_IDS=2,3,4,5`.
+`GPU_IDS[i % len(GPU_IDS)]`. Defaults: `NUM_PROCESSES=4`, `GPU_IDS=2` (reads videos from
+`test_data_mp.json`).
 
 ```bash
-./run_infer_mp.sh                                          # defaults (8 procs, GPU 2-5)
-NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh          # 4 procs on GPU 2-5
+./run_infer_mp.sh                                          # defaults (4 procs, GPU 2)
+GPU_IDS=2,3 NUM_PROCESSES=2 ./run_infer_mp.sh              # 2 procs across GPU 2 and 3
 ```
 
 ### 5.3 Visualization
@@ -153,6 +155,30 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh          # 4 procs on GPU 2-5
 ./run_test.sh fishing        # fishing recognition task test
 ```
 
+### 5.5 Batch image evaluation
+
+Evaluates the fishing-recognition VLM directly on two image folders (one image per VLM
+call): `bulao-img` (捕捞, illegal fishing) and `chuidiao-img` (垂钓, angling). It reports
+a per-folder detection rate and the overall detection rate / accuracy. Both folders are
+**positive** classes — a "Yes" answer is the expected output in each — so precision is not
+defined without a negative class, and accuracy equals the overall detection rate.
+
+```bash
+./run_batch_images.sh
+```
+
+The script mounts the fishing datasets read-only to `/app/fishing_data` and saves a
+per-image report (prediction + reasoning) to `output/img_res/batch_images_results.json`.
+
+Overridable env vars:
+
+- `FISHING_DATA` — host dir of the fishing datasets (default
+  `/home/jcx/code/camera_monitor/data/fishing`, mounted to `/app/fishing_data`).
+- `BULAO_DIR` / `CHUIDIAO_DIR` — image folders (container paths; default
+  `/app/fishing_data/bulao-img/images` and `/app/fishing_data/chuidiao-img/images`).
+- `OUTPUT_JSON` — result path (default `/app/output/img_res/batch_images_results.json`).
+- `VLLM_BASE_URL` / `VLLM_MODEL` — vLLM endpoint / model name.
+
 ---
 
 ## 6. Environment variables
@@ -163,22 +189,26 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh          # 4 procs on GPU 2-5
 | `HOST_DATA` | `<repo>/data` | all scripts | host data dir (mounted to `/app/data`) |
 | `HOST_MODELS` | `<repo>/onnx` | infer/test scripts | host ONNX dir (mounted ro to `/app/onnx`) |
 | `HOST_OUTPUT` | `<repo>/output` | all scripts | host output dir (mounted to `/app/output`) |
-| `GPU_ID` | `0` | single-process / detection tests | detection GPU index |
-| `GPU_IDS` | `2,3,4,5` | multi-process | comma-separated GPUs to use |
-| `NUM_PROCESSES` | `8` | multi-process | number of worker processes |
+| `GPU_ID` | `2` | single-process / detection tests | detection GPU index |
+| `GPU_IDS` | `2` | multi-process | comma-separated GPUs to use |
+| `NUM_PROCESSES` | `4` | multi-process | number of worker processes |
 | `VLLM_BASE_URL` | `http://localhost:7864` | infer / vlm tests | vLLM endpoint |
 | `VLLM_MODEL` | `Qwen3-VL-8B-Instruct` | infer / vlm tests | served model name |
 | `DATA_CONFIG` | `/app/configs/test_data.json` | infer | video list config (container path) |
 | `APP_CONFIG` | `/app/configs/fishing_app.json` | infer | main app config (container path) |
 | `RESULT_DIR` | `/app/output/fishing_res` | infer | result output dir (container path) |
 | `EVIDENCE_DIR` | `/app/output/evidence` | infer | evidence montage output dir (container path) |
-| `INPUT_VIDEO` | `/app/data/videos/test_data_part_2.mp4` | visualize | input video (container path) |
-| `RESULT_JSON` | `/app/output/fishing_res/test_data_part_2.json` | visualize | result JSON (container path) |
+| `INPUT_VIDEO` | `/app/data/videos/20260222172410.mp4` | visualize | input video (container path) |
+| `RESULT_JSON` | `/app/output/fishing_res/20260222172410.json` | visualize | result JSON (container path) |
 | `OUTPUT_DIR` | `/app/output/videos` | visualize | output dir (container path) |
 | `MODEL_CONFIG` | `/app/configs/yolo26_onnx.json` | detection tests | YOLO config (container path) |
 | `INPUT_IMAGE` | `/app/data/images/...` | detection/vlm tests | input image (container path) |
 | `OUTPUT_IMAGE` | `/app/output/images/...` | detection tests | output image (container path) |
 | `INPUT_IMAGES` | `/app/data/images/...` | fishing test | comma-separated image list |
+| `FISHING_DATA` | `/home/jcx/code/camera_monitor/data/fishing` | batch images | host fishing datasets dir (mounted ro to `/app/fishing_data`) |
+| `BULAO_DIR` | `/app/fishing_data/bulao-img/images` | batch images | 捕捞 image folder (container path) |
+| `CHUIDIAO_DIR` | `/app/fishing_data/chuidiao-img/images` | batch images | 垂钓 image folder (container path) |
+| `OUTPUT_JSON` | `/app/output/img_res/batch_images_results.json` | batch images | batch images result JSON (container path) |
 
 > `<repo>` = repository root; `HOST_DATA`/`HOST_MODELS`/`HOST_OUTPUT` are resolved relative
 > to it by the scripts, so no absolute paths are required. Container paths (`/app/...`) are
@@ -199,12 +229,13 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh          # 4 procs on GPU 2-5
 
 ## 8. Notes / caveats
 
-- **GPU layout**: GPU 0/1 are occupied by the shared vLLM service; use GPU 2-5 for detection.
+- **GPU layout**: GPU 0/1 are occupied by the shared vLLM service; detection defaults to
+  GPU 2 (set `GPU_ID`/`GPU_IDS` to your available GPUs).
 - **VLM is the shared bottleneck**: detection scales with process count, but all VLM
   requests hit the single vLLM (`--max-num-seqs 8`). A small oversubscription
   (`NUM_PROCESSES` slightly above `len(GPU_IDS)`) helps hide VLM latency.
-- **Duplicate video entries** (as in `test_data_mp.json`) make every worker write the
-  same output JSON (last writer wins); real multi-video use produces one JSON per video.
+- **Duplicate video entries** in the video list make every worker write the same output
+  JSON (last writer wins); real multi-video use produces one JSON per video.
 - **Evidence montages**: when the VLM answers "Yes", that batch's key frames are stitched
   into a labeled grid image (default 4x2) and saved to `<EVIDENCE_DIR>/{video}/evidence_NNN.jpg`,
   up to `evidence_num` montages per video. `evidence_num`/`evidence_cols`/`evidence_rows`
@@ -213,6 +244,9 @@ NUM_PROCESSES=4 GPU_IDS=2,3,4,5 ./run_infer_mp.sh          # 4 procs on GPU 2-5
   second are sent to the VLM (default 2 = one frame every 0.5s; set 0 to send every frame).
 - **Real timestamps**: frames with recognition carry a `timestamp` field (wall-clock time
   derived from the filename start time + frame offset).
+- **Batch image evaluation**: `run_batch_images.sh` calls the VLM directly on whole frames
+  (no YOLO detection), so it measures the recognition model in isolation. Both image
+  folders are treated as positive ("Yes" expected); see [Section 5.5](#55-batch-image-evaluation).
 - **Import mechanism**: the image sets `PYTHONPATH=/app`, so the top-level packages
   (`models/utils/tasks/system_app`) are importable with no install step (equivalent to
   `pip install -e .`).

@@ -10,11 +10,11 @@
 #   HOST_DATA     host data dir, default <repo>/data
 #   HOST_MODELS   host ONNX model dir, default <repo>/onnx
 #   HOST_OUTPUT   host output dir, default <repo>/output
-#   NUM_PROCESSES number of worker processes, default 8
-#   GPU_IDS       comma-separated GPU indices to use, default 2,3,4,5
+#   NUM_PROCESSES number of worker processes, default 4
+#   GPU_IDS       comma-separated GPU indices to use, default 2
 #   VLLM_BASE_URL vLLM endpoint, default http://localhost:7864
 #   VLLM_MODEL    model name, default Qwen3-VL-8B-Instruct
-#   DATA_CONFIG   video list config (container path), default /app/configs/test_data.json
+#   DATA_CONFIG   video list config (container path), default /app/configs/test_data_mp.json
 #   APP_CONFIG    main config (container path), default /app/configs/fishing_app.json
 #   RESULT_DIR    result output dir (container path), default /app/output/fishing_res
 #   EVIDENCE_DIR  evidence output dir (container path), default /app/output/evidence
@@ -27,11 +27,11 @@ HOST_DATA="${HOST_DATA:-${REPO_DIR}/data}"
 HOST_MODELS="${HOST_MODELS:-${REPO_DIR}/onnx}"
 HOST_OUTPUT="${HOST_OUTPUT:-${REPO_DIR}/output}"
 
-NUM_PROCESSES="${NUM_PROCESSES:-8}"
-GPU_IDS="${GPU_IDS:-2,3,4,5}"
+NUM_PROCESSES="${NUM_PROCESSES:-4}"
+GPU_IDS="${GPU_IDS:-2}"
 VLLM_BASE_URL="${VLLM_BASE_URL:-http://localhost:7864}"
 VLLM_MODEL="${VLLM_MODEL:-Qwen3-VL-8B-Instruct}"
-DATA_CONFIG="${DATA_CONFIG:-/app/configs/test_data.json}"
+DATA_CONFIG="${DATA_CONFIG:-/app/configs/test_data_mp.json}"
 APP_CONFIG="${APP_CONFIG:-/app/configs/fishing_app.json}"
 RESULT_DIR="${RESULT_DIR:-/app/output/fishing_res}"
 EVIDENCE_DIR="${EVIDENCE_DIR:-/app/output/evidence}"

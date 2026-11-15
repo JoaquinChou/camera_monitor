@@ -17,7 +17,7 @@ from fishing_application import Fishing
 
 
 def _parse_gpu_ids() -> List[int]:
-    raw = os.environ.get("GPU_IDS", "2,3,4,5")
+    raw = os.environ.get("GPU_IDS", "2")
     ids = [int(part) for part in raw.split(",") if part.strip() != ""]
     if not ids:
         raise ValueError("GPU_IDS must be a non-empty comma-separated list of ints")

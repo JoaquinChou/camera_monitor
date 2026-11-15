@@ -34,6 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         libgl1 \
         libglib2.0-0 \
+        fonts-wqy-microhei \
         python3 \
         python3-pip \
         cuda-libraries-12-4 \
@@ -54,7 +55,8 @@ RUN python3 -m pip install --upgrade pip \
         protobuf==7.36.1 \
         sympy==1.14.0 \
         coloredlogs==15.0.1 \
-        packaging==26.3
+        packaging==26.3 \
+        pillow==10.4.0
 
 # onnxruntime-gpu: CUDA 12 build.
 # --index-url targets the CUDA12 feed only; --no-deps avoids the PyPI CUDA11 1.18.0.

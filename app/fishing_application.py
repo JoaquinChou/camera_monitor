@@ -77,6 +77,12 @@ class Fishing:
         base_name = os.path.splitext(os.path.basename(str(video_path)))[0]
         self.evidence_dir = os.path.join(self.evidence_root, base_name)
         self.video_start_time = parse_video_start_time(str(video_path))
+        # Reset the sampling clock: timestamps restart at 0 for every video, so
+        # keeping the previous video's value would silently skip all frames of
+        # the following videos (their timestamps are smaller).
+        self.last_collect_time = -1.0
+        self.key_frames.clear()
+        self.key_frame_ids.clear()
 
 
     @classmethod
@@ -91,10 +97,16 @@ class Fishing:
         self.init_system_state(video_path)
         video_info_dict = Camera.get_video_info(video_path)
         logger.info(video_info_dict)
+        if video_info_dict is None:
+            # The video cannot be opened (missing / corrupt): skip it instead of
+            # crashing on an empty frame list.
+            logger.error(f"Skip unreadable video: {video_path}")
+            return
         for frame_info in Camera.read_frame_by_video(video_path):
             self.system_read(frame_info, self.frames_cache)
             self.system_app.process(self.frames_cache, self.system_cache)
-            self.fishing_recog_infer(self.system_cache.frame_infos[-1])
+            if self.system_cache.frame_infos:
+                self.fishing_recog_infer(self.system_cache.frame_infos[-1])
         self._vlm_finalize_infer()
         self.system_finish()
 
@@ -216,7 +228,7 @@ if __name__ == "__main__":
     data_path = os.environ.get("DATA_CONFIG", "/app/configs/test_data.json")
     config_path = os.environ.get("APP_CONFIG", "/app/configs/fishing_app.json")
     result_path = os.environ.get("RESULT_DIR", "/app/output/fishing_res")
-    gpu_id = int(os.environ.get("GPU_ID", "0"))
+    gpu_id = int(os.environ.get("GPU_ID", "2"))
     data_list = read_json(data_path)
     fishing = Fishing(config_path, gpu_id)
     for video_path in data_list:

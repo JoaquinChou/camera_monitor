@@ -2,7 +2,27 @@ import os
 import cv2
 import numpy as np
 from typing import Dict, List, Any, Optional
+from PIL import Image, ImageDraw, ImageFont
 from utils import Camera, read_json, plot_one_box, video_writer
+
+
+# Chinese-capable font candidates (checked in order). cv2.putText only renders
+# ASCII, so PIL + a CJK font is required for the Chinese reasoning text.
+_FONT_CANDIDATES = [
+    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+]
+
+
+def _load_font(size: int) -> ImageFont.FreeTypeFont:
+    for path in _FONT_CANDIDATES:
+        if os.path.exists(path):
+            return ImageFont.truetype(path, size)
+    return ImageFont.load_default()
+
+
+def _bgr_to_rgb(color):
+    return (color[2], color[1], color[0])
 
 
 class VideoVisualizer:
@@ -11,7 +31,8 @@ class VideoVisualizer:
     - Read original video
     - Load detection & recognition results from JSON
     - Draw per frame: frame number (top-right), detection boxes,
-      VLM judgment (Answer + short Reasoning) with color coding
+      VLM judgment (Answer + short Reasoning) with color coding.
+      The VLM result lingers on screen until the next result appears.
     - Write output video to specified directory
     """
 
@@ -34,6 +55,9 @@ class VideoVisualizer:
             self.video_path, self.output_path, fourcc='mp4v'
         )
 
+        # Persistent VLM result: lingers until the next recognition frame updates it.
+        current_recog: Optional[Dict] = None
+
         frame_count = 0
         for frame_info in Camera.read_frame_by_video(self.video_path):
             if frame_info.frame_index == -1:
@@ -45,7 +69,7 @@ class VideoVisualizer:
 
             frame_idx = frame_info.frame_index
 
-            # ---- Draw detection boxes ----
+            # ---- Draw detection boxes (per frame) ----
             if frame_idx in frame_map:
                 item = frame_map[frame_idx]
                 for obj in item.get('all_objects', []):
@@ -58,57 +82,47 @@ class VideoVisualizer:
                         color=[0, 165, 255],
                         label=f"{cls_name} {score:.2f}"
                     )
-
-                # ---- Draw VLM info at top-right ----
+                # Update the persistent recognition when this frame has one.
                 recog_list = item.get('recognition', [])
                 if recog_list:
-                    rec = recog_list[0]
-                    answer = rec.get('answer', 'N/A')
-                    reasoning = rec.get('reasoning', '')
+                    current_recog = recog_list[0]
 
-                    # Color coding: Yes -> red, No -> green
-                    if answer == "Yes":
-                        answer_color = (0, 0, 255)       # BGR red
-                    elif answer == "No":
-                        answer_color = (0, 255, 0)       # BGR green
-                    else:
-                        answer_color = (0, 165, 255)     # orange for unknown
+            # ---- Draw the persistent VLM result (top-right) ----
+            if current_recog is not None:
+                answer = current_recog.get('answer', 'N/A')
+                reasoning = current_recog.get('reasoning', '')
 
-                    # Build text lines
-                    base_lines = [f"Frame: {frame_idx}", f"VLM Answer: {answer}", "Reasoning:"]
-                    reasoning_lines = self._wrap_text(reasoning, 60)
-                    lines = base_lines + reasoning_lines
-
-                    # Assign colors: default white, except answer line (index 1)
-                    default_color = (255, 255, 255)
-                    line_colors = [default_color] * len(lines)
-                    if len(lines) >= 2:
-                        line_colors[1] = answer_color
-
-                    self._draw_text_block(
-                        img,
-                        lines=lines,
-                        anchor='top-right',
-                        font_scale=0.6,
-                        color=default_color,
-                        bg_color=(0, 0, 0, 0.5),
-                        line_colors=line_colors
-                    )
+                # Color coding: Yes -> red, No -> green
+                if answer == "Yes":
+                    answer_color = (0, 0, 255)       # BGR red
+                elif answer == "No":
+                    answer_color = (0, 255, 0)       # BGR green
                 else:
-                    self._draw_text_block(
-                        img,
-                        lines=[f"Frame: {frame_idx}", "No VLM result"],
-                        anchor='top-right',
-                        font_scale=0.7,
-                        color=(0, 0, 255),
-                        bg_color=(0, 0, 0, 0.5)
-                    )
+                    answer_color = (0, 165, 255)     # orange for unknown
+
+                base_lines = [f"Frame: {frame_idx}", f"VLM Answer: {answer}", "Reasoning:"]
+                lines = base_lines + self._wrap_text(reasoning, 28)
+
+                default_color = (255, 255, 255)
+                line_colors = [default_color] * len(lines)
+                if len(lines) >= 2:
+                    line_colors[1] = answer_color
+
+                self._draw_text_block(
+                    img,
+                    lines=lines,
+                    anchor='top-right',
+                    font_size=18,
+                    color=default_color,
+                    bg_color=(0, 0, 0, 0.5),
+                    line_colors=line_colors
+                )
             else:
                 self._draw_text_block(
                     img,
-                    lines=[f"Frame: {frame_idx}", "No data for this frame"],
+                    lines=[f"Frame: {frame_idx}", "No VLM result yet"],
                     anchor='top-right',
-                    font_scale=0.7,
+                    font_size=18,
                     color=(0, 0, 255),
                     bg_color=(0, 0, 0, 0.5)
                 )
@@ -122,35 +136,34 @@ class VideoVisualizer:
 
     def _draw_text_block(self, img: np.ndarray, lines: List[str],
                          anchor: str = 'top-right',
-                         font_scale: float = 0.6,
+                         font_size: int = 18,
                          color=(255, 255, 255),
                          bg_color=(0, 0, 0, 0.5),
                          margin: int = 15,
                          line_gap: int = 5,
                          line_colors: Optional[List] = None) -> None:
         """
-        Draw a block of text on the image with optional semi-transparent background.
-        Each line can have individual color via `line_colors`.
+        Draw a text block with a semi-transparent background using PIL
+        (supports Chinese), then write it back into the BGR image.
         """
-        h, w = img.shape[:2]
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        thickness = 1
+        pil_img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)).convert("RGBA")
+        font = _load_font(font_size)
+        draw = ImageDraw.Draw(pil_img)
 
-        # Calculate text sizes
-        line_heights = []
-        line_widths = []
-        for line in lines:
-            (tw, th), _ = cv2.getTextSize(line, font, font_scale, thickness)
-            line_widths.append(tw)
-            line_heights.append(th)
-
+        # Measure each line (clamp to non-negative: the fallback default font
+        # may report negative metrics for unsupported (CJK) characters).
+        line_boxes = [draw.textbbox((0, 0), line, font=font) for line in lines]
+        line_widths = [max(0, b[2] - b[0]) for b in line_boxes]
+        line_heights = [max(0, b[3] - b[1]) for b in line_boxes]
         max_line_width = max(line_widths) if line_widths else 0
         total_text_height = sum(line_heights) + line_gap * (len(lines) - 1)
+
+        h, w = img.shape[:2]
 
         # Determine anchor position (top-right)
         if anchor == 'top-right':
             text_x = w - margin - max_line_width
-            text_y = margin + line_heights[0]  # baseline of first line
+            text_y = margin
             bg_x1 = text_x - margin // 2
             bg_y1 = margin - margin // 2
             bg_x2 = w - margin // 2
@@ -158,7 +171,7 @@ class VideoVisualizer:
         else:
             # fallback to top-left
             text_x = margin
-            text_y = margin + line_heights[0]
+            text_y = margin
             bg_x1 = margin // 2
             bg_y1 = margin // 2
             bg_x2 = margin + max_line_width + margin // 2
@@ -170,45 +183,48 @@ class VideoVisualizer:
         bg_x2 = min(w, bg_x2)
         bg_y2 = min(h, bg_y2)
 
-        # Draw semi-transparent background
-        if bg_color and len(bg_color) == 4:
-            overlay = img.copy()
-            cv2.rectangle(overlay, (bg_x1, bg_y1), (bg_x2, bg_y2),
-                          bg_color[:3], -1)
-            cv2.addWeighted(overlay, bg_color[3], img, 1 - bg_color[3], 0, img)
+        # Draw semi-transparent background (skip if the region is empty/invalid)
+        if bg_color and len(bg_color) == 4 and bg_x2 > bg_x1 and bg_y2 > bg_y1:
+            overlay = Image.new("RGBA", pil_img.size, (0, 0, 0, 0))
+            overlay_draw = ImageDraw.Draw(overlay)
+            bg_rgb = _bgr_to_rgb(bg_color[:3])
+            overlay_draw.rectangle(
+                [bg_x1, bg_y1, bg_x2, bg_y2],
+                fill=(bg_rgb[0], bg_rgb[1], bg_rgb[2], int(bg_color[3] * 255))
+            )
+            pil_img = Image.alpha_composite(pil_img, overlay)
+            draw = ImageDraw.Draw(pil_img)
 
         # Draw each line with optional per-line color
-        y_offset = text_y
+        y = text_y
         for i, line in enumerate(lines):
-            if i == 0:
-                y = y_offset
-            else:
-                y = y_offset + line_gap + line_heights[i]
             line_color = line_colors[i] if line_colors and i < len(line_colors) else color
-            cv2.putText(img, line, (text_x, y),
-                        font, font_scale, line_color, thickness, cv2.LINE_AA)
-            y_offset = y
+            draw.text((text_x, y), line, font=font, fill=_bgr_to_rgb(line_color))
+            y += line_heights[i] + line_gap
+
+        img[:] = cv2.cvtColor(np.array(pil_img.convert("RGB")), cv2.COLOR_RGB2BGR)
 
     @staticmethod
     def _wrap_text(text: str, width: int) -> List[str]:
-        """Wrap text into lines of at most `width` characters."""
-        words = text.split()
+        """Wrap text into lines of at most `width` characters (Chinese-friendly)."""
+        if not text:
+            return []
         lines = []
         line = ""
-        for w in words:
-            if len(line) + len(w) + 1 <= width:
-                line += (" " + w) if line else w
-            else:
+        for ch in text:
+            if len(line) >= width:
                 lines.append(line)
-                line = w
+                line = ch
+            else:
+                line += ch
         if line:
             lines.append(line)
         return lines
 
 
 if __name__ == "__main__":
-    video_path = os.environ.get("INPUT_VIDEO", "/app/data/videos/test_data_part_2.mp4")
-    json_path = os.environ.get("RESULT_JSON", "/app/output/fishing_res/test_data_part_2.json")
+    video_path = os.environ.get("INPUT_VIDEO", "/app/data/videos/20260222172410.mp4")
+    json_path = os.environ.get("RESULT_JSON", "/app/output/fishing_res/20260222172410.json")
     output_dir = os.environ.get("OUTPUT_DIR", "/app/output/videos")
 
     visualizer = VideoVisualizer(video_path, json_path, output_dir)

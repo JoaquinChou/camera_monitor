@@ -16,7 +16,7 @@
 #   HOST_DATA    host data dir, default <repo>/data
 #   HOST_MODELS  host ONNX model dir, default <repo>/onnx
 #   HOST_OUTPUT  host output dir, default <repo>/output
-#   GPU_ID       GPU index inside the container, default 0
+#   GPU_ID       GPU index inside the container, default 2
 #   VLLM_BASE_URL / VLLM_MODEL / MODEL_CONFIG etc. see each test script
 # =============================================================================
 set -euo pipefail
@@ -27,7 +27,7 @@ HOST_DATA="${HOST_DATA:-${REPO_DIR}/data}"
 HOST_MODELS="${HOST_MODELS:-${REPO_DIR}/onnx}"
 HOST_OUTPUT="${HOST_OUTPUT:-${REPO_DIR}/output}"
 
-GPU_ID="${GPU_ID:-0}"
+GPU_ID="${GPU_ID:-2}"
 VLLM_BASE_URL="${VLLM_BASE_URL:-http://localhost:7864}"
 VLLM_MODEL="${VLLM_MODEL:-Qwen3-VL-8B-Instruct}"
 MODEL_CONFIG="${MODEL_CONFIG:-/app/configs/yolo26_onnx.json}"
