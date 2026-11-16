@@ -67,6 +67,11 @@ camera_monitor/
 │   ├── run_visualize.sh         # 结果可视化出片
 │   ├── run_batch_images.sh      # 图片批量评测（钓鱼数据集）
 │   └── run_test.sh              # 运行全部测试样例
+├── web/
+│   ├── server.py                # Web 演示服务入口（标准库，零依赖）
+│   ├── app/                     # config / data / media / handler 分层
+│   ├── static/                  # 前端（index.html + css + js）
+│   └── run_web.sh               # 一键启动脚本
 ├── Dockerfile                   # CUDA 12.4 镜像，onnxruntime-gpu 1.18（CUDA 12）
 ├── requirements.txt
 ├── pyproject.toml
@@ -175,6 +180,19 @@ GPU_IDS=2,3 NUM_PROCESSES=2 ./run_infer_mp.sh        # 2 进程，GPU 2 和 3
 - `OUTPUT_JSON` — 结果路径（默认 `/app/output/img_res/batch_images_results.json`）。
 - `VLLM_BASE_URL` / `VLLM_MODEL` — vLLM 地址 / 模型名。
 
+### 5.6 Web 演示平台
+
+面向验收汇报的轻量 Web 展示页，两个入口：钓鱼捕捞行为案例（标注视频 + 证据帧 + VLM 判定 +
+图像指标）与 AIS 统计分析（接口预留）。后端基于 Python 标准库 `http.server`（零新增依赖），
+前端为原生 JS。
+
+```bash
+cd <repo>/web
+./run_web.sh                    # 默认 http://0.0.0.0:8001
+```
+
+浏览器打开 `http://<主机IP>:8001`。完整 API 与目录结构见 [web/README.md](web/README.md)。
+
 ---
 
 ## 6. 环境变量
@@ -205,6 +223,10 @@ GPU_IDS=2,3 NUM_PROCESSES=2 ./run_infer_mp.sh        # 2 进程，GPU 2 和 3
 | `BULAO_DIR` | `/app/fishing_data/bulao-img/images` | 批量评测 | 捕捞图片文件夹（容器内路径）|
 | `CHUIDIAO_DIR` | `/app/fishing_data/chuidiao-img/images` | 批量评测 | 垂钓图片文件夹（容器内路径）|
 | `OUTPUT_JSON` | `/app/output/img_res/batch_images_results.json` | 批量评测 | 批量评测结果 JSON（容器内路径）|
+| `WEB_HOST` | `0.0.0.0` | Web 演示 | 监听地址 |
+| `WEB_PORT` | `8001` | Web 演示 | 监听端口 |
+| `WEB_OUTPUT_DIR` | `<repo>/output` | Web 演示 | 要展示的推理产物目录 |
+| `WEB_FISHING_DATA` | `/home/jcx/code/camera_monitor/data/fishing` | Web 演示 | 图像案例数据集目录 |
 
 > `<repo>` = 仓库根目录；`HOST_DATA`/`HOST_MODELS`/`HOST_OUTPUT` 由脚本相对它自动解析，
 > 无需写绝对路径。容器内路径（`/app/...`）是镜像里固定的，不要改动。
@@ -238,5 +260,9 @@ GPU_IDS=2,3 NUM_PROCESSES=2 ./run_infer_mp.sh        # 2 进程，GPU 2 和 3
   帧偏移）。
 - **图片批量评测**：`run_batch_images.sh` 直接把整帧交给 VLM（不走 YOLO 检测），因此它单独
   衡量识别模型本身。两个图片文件夹都按正类处理（期望 "Yes"）；见 [5.5 节](#55-图片批量评测)。
+- **浏览器可播放的视频**：`run_visualize.sh` 会把 OpenCV 输出（MPEG-4 Part 2）用 ffmpeg
+  转码成 H.264，这样标注视频才能在浏览器和 Web 演示里正常播放。
+- **Web 演示**：`web/run_web.sh` 会对外提供推理产物（视频 / 证据 / 结果 / 图像案例）与 JSON
+  接口，用于对甲方验收展示；见 [5.6 节](#56-web-演示平台)。
 - **导入机制**：镜像里通过 `PYTHONPATH=/app` 让顶层包（`models/utils/tasks/system_app`）
   可直接 import，等价于 `pip install -e .`，无需额外安装步骤。

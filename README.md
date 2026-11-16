@@ -68,6 +68,11 @@ camera_monitor/
 │   ├── run_visualize.sh         # draw results onto video
 │   ├── run_batch_images.sh      # batch image evaluation (fishing datasets)
 │   └── run_test.sh              # run all test examples
+├── web/
+│   ├── server.py                # web demo server entry (stdlib, no deps)
+│   ├── app/                     # config / data / media / handler layers
+│   ├── static/                  # frontend (index.html + css + js)
+│   └── run_web.sh               # one-shot launcher
 ├── Dockerfile                   # CUDA 12.4 image, onnxruntime-gpu 1.18 (CUDA 12)
 ├── requirements.txt
 ├── pyproject.toml
@@ -179,6 +184,21 @@ Overridable env vars:
 - `OUTPUT_JSON` — result path (default `/app/output/img_res/batch_images_results.json`).
 - `VLLM_BASE_URL` / `VLLM_MODEL` — vLLM endpoint / model name.
 
+### 5.6 Web demo
+
+A lightweight demo web app for acceptance presentations, with two entries: fishing behavior
+cases (annotated videos + evidence frames + VLM verdicts + image metrics) and AIS statistics
+(reserved API). Built on Python's stdlib `http.server` (no extra dependencies) with a vanilla
+JS frontend.
+
+```bash
+cd <repo>/web
+./run_web.sh                    # default http://0.0.0.0:8001
+```
+
+Open `http://<host>:8001` in a browser. See [web/README.md](web/README.md) for the full API
+and layout.
+
 ---
 
 ## 6. Environment variables
@@ -209,6 +229,10 @@ Overridable env vars:
 | `BULAO_DIR` | `/app/fishing_data/bulao-img/images` | batch images | 捕捞 image folder (container path) |
 | `CHUIDIAO_DIR` | `/app/fishing_data/chuidiao-img/images` | batch images | 垂钓 image folder (container path) |
 | `OUTPUT_JSON` | `/app/output/img_res/batch_images_results.json` | batch images | batch images result JSON (container path) |
+| `WEB_HOST` | `0.0.0.0` | web demo | listen address |
+| `WEB_PORT` | `8001` | web demo | listen port |
+| `WEB_OUTPUT_DIR` | `<repo>/output` | web demo | pipeline output dir to serve |
+| `WEB_FISHING_DATA` | `/home/jcx/code/camera_monitor/data/fishing` | web demo | image case dataset dir |
 
 > `<repo>` = repository root; `HOST_DATA`/`HOST_MODELS`/`HOST_OUTPUT` are resolved relative
 > to it by the scripts, so no absolute paths are required. Container paths (`/app/...`) are
@@ -247,6 +271,10 @@ Overridable env vars:
 - **Batch image evaluation**: `run_batch_images.sh` calls the VLM directly on whole frames
   (no YOLO detection), so it measures the recognition model in isolation. Both image
   folders are treated as positive ("Yes" expected); see [Section 5.5](#55-batch-image-evaluation).
+- **Browser-compatible video**: `run_visualize.sh` transcodes the OpenCV output (MPEG-4
+  Part 2) to H.264 via ffmpeg, so the annotated videos play in browsers and in the web demo.
+- **Web demo**: `web/run_web.sh` serves the pipeline outputs (videos / evidence / results /
+  image cases) plus JSON APIs for a client-facing demo; see [Section 5.6](#56-web-demo).
 - **Import mechanism**: the image sets `PYTHONPATH=/app`, so the top-level packages
   (`models/utils/tasks/system_app`) are importable with no install step (equivalent to
   `pip install -e .`).
