@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>长江禁捕智能监管系统 · 演示平台</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">🛰️</div>
+      <div class="brand-text">
+        <h1>长江禁捕智能监管系统</h1>
+        <p>Yangtze Fishing-Ban Intelligent Surveillance</p>
+      </div>
+    </div>
+    <div class="topbar-tag">YOLO26 + Qwen3-VL · 两阶段识别架构</div>
+  </header>
+
+  <main class="container">
+
+    <!-- ==================== 首页导航 ==================== -->
+    <section id="view-home" class="view">
+      <div class="hero">
+        <h2>面向长江十年禁渔的 AI 智能监管</h2>
+        <p>目标检测实时发现 · 视觉大模型语义判定 · 违规证据链自动生成</p>
+      </div>
+
+      <div class="nav-grid">
+        <button class="nav-card" data-view="fishing">
+          <div class="nav-card-icon">🎣</div>
+          <div class="nav-card-body">
+            <h3>钓鱼捕捞行为案例展示</h3>
+            <p>视频行为识别 · 证据链 · 图像识别指标</p>
+            <span class="nav-card-cta">进入展示 →</span>
+          </div>
+        </button>
+
+        <button class="nav-card" data-view="ais">
+          <div class="nav-card-icon">🛰️</div>
+          <div class="nav-card-body">
+            <h3>AIS 统计分析</h3>
+            <p>船舶轨迹与作业行为统计（接口预留）</p>
+            <span class="nav-card-cta">进入模块 →</span>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== 钓鱼行为视图 ==================== -->
+    <section id="view-fishing" class="view hidden">
+      <div class="view-head">
+        <button class="back-btn" data-view="home">← 返回首页</button>
+        <h2>钓鱼捕捞行为案例展示</h2>
+        <span class="view-head-note">数据实时读取自推理产物</span>
+      </div>
+
+      <div id="metrics" class="metrics-grid"></div>
+
+      <h3 class="section-title">视频行为案例</h3>
+      <div id="video-cases" class="video-cases"></div>
+
+      <h3 class="section-title">图像识别案例</h3>
+      <div id="image-cases" class="image-cases"></div>
+    </section>
+
+    <!-- ==================== AIS 视图 ==================== -->
+    <section id="view-ais" class="view hidden">
+      <div class="view-head">
+        <button class="back-btn" data-view="home">← 返回首页</button>
+        <h2>AIS 统计分析</h2>
+      </div>
+      <div class="placeholder">
+        <div class="placeholder-icon">🛰️</div>
+        <h3>AIS 统计分析接口预留</h3>
+        <p>后端已预留 <code>/api/ais</code> 接口。接入船舶 AIS 轨迹数据后，可在此展示船舶分布、航迹热力与作业行为统计。</p>
+        <div class="placeholder-badge">RESERVED</div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    长江禁捕智能监管系统 · 演示平台　|　目标检测：YOLO26　|　行为理解：Qwen3-VL
+  </footer>
+
+  <!-- 灯箱 -->
+  <div id="lightbox" class="lightbox hidden">
+    <div class="lightbox-inner">
+      <img id="lightbox-img" src="" alt="证据图">
+      <button id="lightbox-close" class="lightbox-close">✕</button>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

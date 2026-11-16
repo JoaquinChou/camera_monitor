@@ -1,4 +1,5 @@
 import os
+import subprocess
 import cv2
 import numpy as np
 from typing import Dict, List, Any, Optional
@@ -131,8 +132,32 @@ class VideoVisualizer:
             frame_count += 1
 
         out.release()
+        self._transcode_to_h264()
         print(f"Visualization completed! Processed {frame_count} frames. "
               f"Output saved to: {self.output_path}")
+
+    def _transcode_to_h264(self) -> None:
+        """Re-encode the OpenCV output to browser-friendly H.264 in place.
+
+        OpenCV's bundled FFmpeg only exposes the MPEG-4 Part 2 encoder, which
+        HTML5 <video> cannot play. The system ffmpeg (libx264) transcodes the
+        intermediate file so the result plays in any modern browser.
+        """
+        tmp_path = self.output_path + ".h264.tmp.mp4"
+        cmd = [
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-i", self.output_path,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "20",
+            "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an",
+            tmp_path,
+        ]
+        result = subprocess.run(cmd, capture_output=True)
+        if result.returncode == 0 and os.path.isfile(tmp_path):
+            os.replace(tmp_path, self.output_path)
+        else:
+            # Non-fatal: keep the original MPEG-4 output if the transcode fails.
+            print("Warning: H.264 transcode failed, keeping the original output. "
+                  f"ffmpeg: {result.stderr.decode('utf-8', 'ignore')[:200]}")
 
     def _draw_text_block(self, img: np.ndarray, lines: List[str],
                          anchor: str = 'top-right',
