@@ -30,7 +30,8 @@ class DemoHandler(BaseHTTPRequestHandler):
         self._write(payload)
 
     def _send_static(self, path: Path) -> None:
-        media.serve_file(self, path)
+        # no-cache: static assets change during development; always revalidate.
+        media.serve_file(self, path, cache_control="no-cache")
 
     def _send_download(self, payload: bytes, content_type: str, filename: str) -> None:
         """Stream a raw file as an attachment download."""

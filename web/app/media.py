@@ -84,8 +84,12 @@ def _parse_range(range_header: Optional[str], size: int) -> Tuple[Optional[int],
     return start, end
 
 
-def serve_file(handler, path: Path) -> None:
-    """Stream ``path`` to the client, honouring a byte Range request."""
+def serve_file(handler, path: Path, cache_control: Optional[str] = None) -> None:
+    """Stream ``path`` to the client, honouring a byte Range request.
+
+    ``cache_control`` is passed through as a ``Cache-Control`` header when set
+    (e.g. ``no-cache`` for static assets that change often during development).
+    """
     if path is None or not path.is_file():
         handler.send_error(404)
         return
@@ -100,6 +104,8 @@ def serve_file(handler, path: Path) -> None:
         handler.send_header("Content-Type", content_type)
         handler.send_header("Content-Length", str(size))
         handler.send_header("Accept-Ranges", "bytes")
+        if cache_control:
+            handler.send_header("Cache-Control", cache_control)
         handler.end_headers()
         if not is_head:
             _stream(handler, path, 0, size)
@@ -114,6 +120,8 @@ def serve_file(handler, path: Path) -> None:
         handler.send_header("Content-Length", str(length))
         handler.send_header("Content-Range", f"bytes {start}-{end}/{size}")
         handler.send_header("Accept-Ranges", "bytes")
+        if cache_control:
+            handler.send_header("Cache-Control", cache_control)
         handler.end_headers()
         if not is_head:
             _stream(handler, path, start, length)

@@ -77,14 +77,15 @@ window.AIS = (function () {
       const res = await fetch("/api/ais");
       if (!res.ok) throw new Error("/api/ais -> " + res.status);
       bundle = await res.json();
-      buildCells();
-      render();
     } catch (err) {
-      console.error(err);
+      console.error("[ais] 数据加载失败:", err);
       const el = $("#ais-summary");
       if (el) el.innerHTML =
         '<p class="ais-error">AIS 数据加载失败，请确认服务已启动且 AIS 数据文件存在。</p>';
+      return;
     }
+    buildCells();
+    render();
   }
 
   function buildCells() {
@@ -204,11 +205,11 @@ window.AIS = (function () {
       phase[1] += counts[7];
     }
 
-    renderHistoryMap(gridTotals, grid);
+    renderHistoryMap(gridTotals, grid, slot);
     renderHistorySeries(hourly, daily, phase, start, end, slot, grid);
   }
 
-  function renderHistoryMap(gridTotals, selected) {
+  function renderHistoryMap(gridTotals, selected, slot) {
     let max = 0, topKey = "";
     for (const [key, count] of gridTotals) if (count > max) { max = count; topKey = key; }
     const thresholds = max
