@@ -71,13 +71,185 @@
       <div class="view-head">
         <button class="back-btn" data-view="home">← 返回首页</button>
         <h2>AIS 统计分析</h2>
+        <span class="view-head-note">长江违规行为分析项目 · 目标与结果</span>
       </div>
-      <div class="placeholder">
-        <div class="placeholder-icon">🛰️</div>
-        <h3>AIS 统计分析接口预留</h3>
-        <p>后端已预留 <code>/api/ais</code> 接口。接入船舶 AIS 轨迹数据后，可在此展示船舶分布、航迹热力与作业行为统计。</p>
-        <div class="placeholder-badge">RESERVED</div>
+
+      <p class="ais-lead">本阶段用 27 天 AIS 观测验证三项任务：统计时空分布规律、绘制热力图与时序图、建模预测与回测评估。下列结果衡量渔船活跃度，正式违规统计需要经复核的事件与有效监控记录。</p>
+
+      <!-- 摘要卡片（数据驱动） -->
+      <div id="ais-summary" class="ais-summary"></div>
+
+      <!-- 01 数据与口径 -->
+      <section class="ais-card">
+        <div class="ais-section-head">
+          <p class="ais-label">01 · 数据与口径</p>
+          <h3>用轨迹点构造可预测的船舶计数</h3>
+          <p class="ais-desc">输入为 <code>data/AIS/AIS2/DF.csv</code>。2,551,986 条记录全部通过时间、船舶 ID 和坐标校验，覆盖 7,000 个船舶 ID，时间为 2019-10-28 至 2019-11-23。区域按数据坐标定义，时段沿用源数据的时钟。</p>
+        </div>
+        <div class="ais-panels">
+          <div class="ais-panel"><h4>① 划分空间</h4><p>读取 <code>lat</code>、<code>lon</code>，按 0.1° × 0.1° 划网格，用中心坐标输出结果。</p></div>
+          <div class="ais-panel"><h4>② 划分时间</h4><p>读取 <code>time</code>，每天分为 00:00 起的六个 4 小时时段。</p></div>
+          <div class="ais-panel"><h4>③ 船舶去重计数</h4><p>按日期、网格、时段对 <code>ID</code> 去重。同一船可在不同网格或时段分别计数。</p></div>
+        </div>
+        <p class="ais-note"><strong>预测目标是观测船数。</strong> 原型把候选网格中没有轨迹点的时段计为零条船舶观测。原始 <code>type</code> 标的是围网、拖网或刺网，本次训练使用 ID、坐标和时间四个字段。对实际违规事件的预测需要另行取得复核标签和监控覆盖数据。</p>
+      </section>
+
+      <!-- 02 历史活动分布 -->
+      <section class="ais-card" id="ais-history">
+        <div class="ais-section-head">
+          <p class="ais-label">02 · 历史活动分布</p>
+          <h3>过去哪些区域、哪些时段观测到更多渔船？</h3>
+          <p class="ais-desc" id="ais-history-desc"></p>
+        </div>
+
+        <div class="ais-filter" role="group" aria-label="历史分布筛选">
+          <label>起始日期<select id="ais-start"></select></label>
+          <label>结束日期<select id="ais-end"></select></label>
+          <label>热点图时段<select id="ais-window">
+            <option value="-1">全天 · 合计</option>
+            <option value="0">00:00–04:00</option>
+            <option value="1">04:00–08:00</option>
+            <option value="2">08:00–12:00</option>
+            <option value="3">12:00–16:00</option>
+            <option value="4">16:00–20:00</option>
+            <option value="5">20:00–24:00</option>
+          </select></label>
+          <label>时序图网格<select id="ais-grid"><option value="">全区</option></select></label>
+          <button id="ais-reset" type="button">重置筛选</button>
+        </div>
+        <p class="ais-help">点击网格查看该处时序，点击日内时段切换热点图，点击逐日柱只看该日。日期范围同时作用于两张图。</p>
+
+        <div class="ais-visuals">
+          <figure class="ais-visual">
+            <h4>历史活动热点图</h4>
+            <svg id="ais-map" viewBox="0 0 650 460" role="img" aria-label="历史活动热点图"></svg>
+            <div class="ais-scale" id="ais-legend" aria-label="网格计数图例"></div>
+            <figcaption id="ais-map-status" class="ais-status" aria-live="polite"></figcaption>
+          </figure>
+          <figure class="ais-visual">
+            <h4>时序分布</h4>
+            <p id="ais-series-status" class="ais-status" aria-live="polite"></p>
+            <div class="ais-hour-bars" id="ais-hour-bars" aria-label="六个时段的观测计数"></div>
+            <h4>逐日趋势</h4>
+            <p id="ais-daily-status" class="ais-status"></p>
+            <div class="ais-day-bars" id="ais-day-bars" aria-label="每日观测计数"></div>
+            <div class="ais-day-labels" id="ais-day-labels" aria-hidden="true"></div>
+            <figcaption class="ais-status">逐日图中的暗色柱表示周末。悬停或聚焦柱形可查看日期和计数。</figcaption>
+          </figure>
+        </div>
+
+        <div class="ais-metrics-row" aria-label="历史观测比较">
+          <div class="ais-stat"><strong>当前地图筛选 · 计数合计</strong><span id="ais-total"></span></div>
+          <div class="ais-stat"><strong>工作日与周末 · 日均</strong><span id="ais-weekpart"></span></div>
+          <div class="ais-stat"><strong>白天与夜间 · 全天分组</strong><span id="ais-daynight"></span></div>
+        </div>
+
+        <p class="ais-small">地图、逐日图和日均比较按网格时段内去重船数加总，同一船跨网格或时段会分别计数。工作日暂按周一至周五划分，日均按组内日历天数计算。昼夜按源数据时钟划分，白天为 06:00–18:00，夜间为当日其余时段，按「日期 × 网格 × 昼夜」分别去重，独立于 4 小时时段筛选。色阶随筛选重算，跨筛选条件比较时请查看数值。</p>
+
+        <div class="ais-table-wrap" tabindex="0" aria-label="当前缺少的数据维度">
+          <table class="ais-table">
+            <caption>正式违规统计仍缺的资料</caption>
+            <thead><tr><th scope="col">维度</th><th scope="col">现阶段口径</th><th scope="col">需要补齐</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">违规行为</th><td>AIS 观测活跃度。作业类型字段可用于区分围网、拖网、刺网。</td><td>经复核的违规事件 ID、发生时间、位置和类型，合并重复告警。</td></tr>
+              <tr><th scope="row">昼夜、节假日</th><td>源数据时钟上的固定昼夜区间和日历工作日／周末。</td><td>本地时区、适用节假日日历。若按实际日出日落划分，还需可靠地点和时间。</td></tr>
+              <tr><th scope="row">禁渔期</th><td>暂缺可匹配的禁渔标签。</td><td>对应水域的禁渔规则、有效日期与适用范围。</td></tr>
+              <tr><th scope="row">江段、重点水域</th><td>用 0.1° 网格表示研究区。</td><td>江段及重点水域边界、相机位置或事件坐标，才能做空间归属。</td></tr>
+              <tr><th scope="row">监控覆盖</th><td>汇总可见轨迹记录。样本中没有有效监控时长。</td><td>各江段各时段的覆盖与设备在线记录，区分零事件和无监控，并计算每 100 小时的事件率。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 03 预测方法 -->
+      <section class="ais-card">
+        <div class="ais-section-head">
+          <p class="ais-label">03 · 预测方法</p>
+          <h3>比较两种历史基线和一种计数模型</h3>
+          <p class="ais-desc">每天用截至前一天的观测数据，生成次日六个时段的预测。每种方法输出同一套网格与时段，便于比较数量和排序效果。</p>
+        </div>
+        <div class="ais-panels">
+          <div class="ais-panel"><span class="ais-tag">基线 A</span><h4>沿用昨天同一时段</h4><p>直接用同一网格上一天同一时段的船数。适用于近期活动较稳定的情形。</p></div>
+          <div class="ais-panel"><span class="ais-tag">基线 B · 热点主输出</span><h4>过去 7 天同一时段均值</h4><p>取同一网格、同一时段过去七天的平均船数，减少单日波动对排序的影响。</p></div>
+          <div class="ais-panel"><span class="ais-tag">机器学习候选</span><h4>泊松梯度提升树</h4><p>使用 <code>HistGradientBoostingRegressor</code> 和泊松损失，输入网格、时段、是否周末，及滞后 1、2、3、7 日计数和 3、7 日滚动均值。训练 150 轮，每棵树最多 15 个叶节点。</p></div>
+        </div>
+      </section>
+
+      <!-- 04 回测对比 -->
+      <section class="ais-card" id="ais-backtest">
+        <div class="ais-section-head">
+          <p class="ais-label">04 · 回测对比</p>
+          <h3>按日期留出测试，分别衡量数量与热点</h3>
+        </div>
+        <div class="ais-split" aria-label="数据划分">
+          <div><strong>训练历史 · 16 天</strong><span>10-28 至 11-12</span></div>
+          <div><strong>验证 · 5 天</strong><span>11-13 至 11-17</span></div>
+          <div><strong>测试 · 6 天</strong><span>11-18 至 11-23</span></div>
+        </div>
+        <p class="ais-small">前 7 天用于构造历史特征，首个训练目标为 11-04。验证后用测试前的数据重训梯度提升树。测试时逐日预测，仅使用当日前的观测。测试候选网格固定为初始训练历史出现过的 669 个，产生 24,084 个网格时段，覆盖测试期 99.33% 的网格内观测计数。</p>
+        <div class="ais-table-wrap" tabindex="0" aria-label="测试指标表">
+          <table class="ais-table" id="ais-test-table" style="margin-top:15px"></table>
+        </div>
+        <p class="ais-small"><strong>指标定义</strong>　MAE 是每个网格时段的平均绝对误差（艘），RMSE 对大误差更敏感。Top 10 覆盖率是每时段预测前十名网格中的实际观测计数，占全部测试网格实际观测计数的比例。峰值命中指一天中预测与实测的全区计数最高时段一致。</p>
+        <p class="ais-note" id="ais-backtest-conclusion"></p>
+        <details>
+          <summary>查看验证集完整指标与模型选择依据</summary>
+          <div class="ais-table-wrap" tabindex="0" aria-label="验证指标表">
+            <table class="ais-table" id="ais-val-table"></table>
+          </div>
+        </details>
+      </section>
+
+      <!-- 05 预测结果 -->
+      <section class="ais-card" id="ais-forecast">
+        <div class="ais-section-head">
+          <p class="ais-label">05 · 预测结果</p>
+          <h3>2019 年 11 月 24 日的次日预测</h3>
+          <p class="ais-desc" id="ais-forecast-desc"></p>
+        </div>
+        <div class="ais-visuals">
+          <div class="ais-visual">
+            <fieldset>
+              <legend>预测热点网格</legend>
+              <div class="ais-tabs" id="ais-forecast-tabs"></div>
+              <svg id="ais-forecast-map" viewBox="0 0 650 460" role="img" aria-label="预测热点网格图"></svg>
+              <div class="ais-scale" id="ais-forecast-legend" aria-label="预计船数图例"></div>
+              <p class="ais-small" id="ais-forecast-status"></p>
+            </fieldset>
+          </div>
+          <div class="ais-visual">
+            <h4>各时段全区预测</h4>
+            <div class="ais-bar-chart" id="ais-forecast-bars" aria-label="各时段的预测计数之和"></div>
+            <p class="ais-small">对网格计数求和。同一船跨网格可能重复计入，单位为网格内观测计数。</p>
+            <div class="ais-table-wrap" tabindex="0" aria-label="预测前五名网格时段">
+              <table class="ais-table" id="ais-forecast-top5"></table>
+            </div>
+            <p class="ais-small">示例日位于现有数据范围之后。准确度以留出的六天回测为依据。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 06 未来扩展 -->
+      <section class="ais-card">
+        <div class="ais-section-head">
+          <p class="ais-label">06 · 未来扩展</p>
+          <h3>从船舶活跃度过渡到违规风险</h3>
+          <p class="ais-desc">后续拿到新的 AIS 数据时，沿用同一坐标系、时区和网格定义，每天汇总新增记录，滚动更新过去 7 天均值。次日观测到齐后，将实际值与预测对齐，持续检查热点覆盖率。接入长江巡检数据后，再按以下步骤替换预测目标和输入口径。</p>
+        </div>
+        <ol class="ais-steps">
+          <li><h4>把视频识别结果整理成违规事件</h4><p>接入视频实际开始时间、相机点位及江段或重点水域。将连续帧或重复告警合并为事件，保留事件 ID、起止时间、行为类型和复核结果。按事件日期与位置关联适用的禁渔规则，生成昼夜、节假日和禁渔期字段。</p></li>
+          <li><h4>建立江段 × 时段台账</h4><p>每行记录经复核的违规事件数和有效监控小时。区分有效监控下的零事件与设备离线或无覆盖。按相同口径绘制事件数量、每 100 小时有效监控发现的事件数及其热力图和时序分布。</p></li>
+          <li><h4>用后续日期检验风险排序</h4><p>保留近期同期均值基线，尝试用历史事件、日历与已知巡检计划预测次日事件数。预测时可用的有效监控时长或计划时长可作为计数模型的暴露量；长时间无覆盖的水域单独标为证据不足。用滚动回测对比 Top K 事件覆盖率、计数误差与峰值命中，分水域和节假日复核结果。</p></li>
+        </ol>
+        <p class="ais-note"><strong>交付顺序。</strong> 先用可核查的事件台账交付时空统计与图表；待覆盖足够多的后续日期、节假日及适用的禁渔条件，再评估风险排序能否稳定超过基线。</p>
+      </section>
+
+      <!-- 下载 -->
+      <div class="ais-downloads">
+        <a class="ais-download" href="/api/ais/forecast.csv">预测结果 CSV <span aria-hidden="true">↓</span></a>
+        <a class="ais-download" href="/api/ais/metrics.json">回测指标 JSON <span aria-hidden="true">↓</span></a>
       </div>
+      <p class="ais-small">复现来源　<code>ais_forecast.py</code>、<code>ais_forecast_results/metrics.json</code>、<code>ais_forecast_results/forecast.csv</code>。预测数据与回测指标已内嵌，可离线下载。</p>
     </section>
 
   </main>
@@ -94,6 +266,7 @@
     </div>
   </div>
 
+  <script src="/static/js/ais.js"></script>
   <script src="/static/js/app.js"></script>
 </body>
 </html>

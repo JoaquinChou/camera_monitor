@@ -11,6 +11,7 @@
     const target = document.getElementById("view-" + name);
     if (target) target.classList.remove("hidden");
     if (name === "fishing") loadFishingView();
+    if (name === "ais" && window.AIS) window.AIS.init();
   }
 
   function bindNavigation() {

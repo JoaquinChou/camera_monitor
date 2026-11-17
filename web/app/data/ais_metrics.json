@@ -1,0 +1,71 @@
+{
+  "input_rows": 2551986,
+  "valid_rows": 2551986,
+  "vessels": 7000,
+  "first_date": "2019-10-28",
+  "last_date": "2019-11-23",
+  "days": 27,
+  "grid_degrees": 0.1,
+  "window_hours": 4,
+  "train_dates": [
+    "2019-10-28",
+    "2019-11-12"
+  ],
+  "first_training_target": "2019-11-04",
+  "validation_dates": [
+    "2019-11-13",
+    "2019-11-17"
+  ],
+  "test_dates": [
+    "2019-11-18",
+    "2019-11-23"
+  ],
+  "backtest_cells": 669,
+  "test_windows": 24084,
+  "test_observed_count_coverage": 0.9933046784592494,
+  "test_mean_count": 1.4968858993522671,
+  "validation": {
+    "yesterday": {
+      "mae": 1.624813,
+      "rmse": 5.298701,
+      "top10_count_capture": 0.195271,
+      "peak_window_hits": 1
+    },
+    "mean_7d": {
+      "mae": 1.355805,
+      "rmse": 4.03389,
+      "top10_count_capture": 0.251354,
+      "peak_window_hits": 0
+    },
+    "poisson_gbdt": {
+      "mae": 1.32874,
+      "rmse": 4.094664,
+      "top10_count_capture": 0.232554,
+      "peak_window_hits": 2
+    }
+  },
+  "test": {
+    "yesterday": {
+      "mae": 1.20333,
+      "rmse": 5.975351,
+      "top10_count_capture": 0.309839,
+      "peak_window_hits": 2
+    },
+    "mean_7d": {
+      "mae": 1.517433,
+      "rmse": 5.576784,
+      "top10_count_capture": 0.344983,
+      "peak_window_hits": 3
+    },
+    "poisson_gbdt": {
+      "mae": 1.464759,
+      "rmse": 6.741822,
+      "top10_count_capture": 0.327647,
+      "peak_window_hits": 1
+    }
+  },
+  "selected_by_validation_mae": "poisson_gbdt",
+  "selected_by_validation_hotspot_capture": "mean_7d",
+  "forecast_date": "2019-11-24",
+  "forecast_cells": 748
+}

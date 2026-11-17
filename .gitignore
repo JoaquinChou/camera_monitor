@@ -6,3 +6,7 @@ onnx
 
 __pycache__/
 *.egg-info/
+
+# Bundled AIS demo data (small, offline-friendly) — keep tracked.
+!web/app/data/
+!web/app/data/*

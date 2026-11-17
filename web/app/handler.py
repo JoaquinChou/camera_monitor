@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from . import config, data, media
+from . import ais_data, config, data, media
 
 
 class DemoHandler(BaseHTTPRequestHandler):
@@ -31,6 +31,15 @@ class DemoHandler(BaseHTTPRequestHandler):
 
     def _send_static(self, path: Path) -> None:
         media.serve_file(self, path)
+
+    def _send_download(self, payload: bytes, content_type: str, filename: str) -> None:
+        """Stream a raw file as an attachment download."""
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self._write(payload)
 
     # -- routing ---------------------------------------------------------------
     def do_GET(self) -> None:
@@ -67,13 +76,20 @@ class DemoHandler(BaseHTTPRequestHandler):
             return self._send_json(routes[path]())
 
         if path == "/api/ais":
-            # AIS statistical analysis is reserved for a later integration.
-            return self._send_json(
-                {
-                    "status": "reserved",
-                    "message": "AIS 统计分析接口已预留，待接入船舶 AIS 数据源。",
-                    "data": [],
-                }
+            return self._send_json(ais_data.load_ais())
+
+        if path == "/api/ais/forecast.csv":
+            payload = ais_data.read_forecast_csv()
+            if payload is None:
+                return self.send_error(404)
+            return self._send_download(payload, "text/csv; charset=utf-8", "forecast.csv")
+
+        if path == "/api/ais/metrics.json":
+            payload = ais_data.read_metrics_json()
+            if payload is None:
+                return self.send_error(404)
+            return self._send_download(
+                payload, "application/json; charset=utf-8", "metrics.json"
             )
 
         self.send_error(404)
