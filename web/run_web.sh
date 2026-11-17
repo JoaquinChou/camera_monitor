@@ -3,15 +3,16 @@
 # run_web.sh - start the web demo server (frontend + pipeline outputs + APIs)
 #
 # Serves:
-#   /             demo frontend (two buttons: fishing cases / AIS stats)
-#   /api/*        JSON APIs (summary / video-cases / image-cases / ais)
+#   /             demo frontend (fishing cases / AIS spatio-temporal analysis)
+#   /api/*        JSON APIs (summary / video-cases / image-cases / ais / downloads)
 #   /media/*      videos, evidence montages, results, image cases (Range-enabled)
 #
 # Overridable env vars:
 #   WEB_HOST             listen address,  default 0.0.0.0
 #   WEB_PORT             listen port,     default 8001
 #   WEB_OUTPUT_DIR       pipeline output, default <repo>/output
-#   WEB_FISHING_DATA     image datasets,  default /home/jcx/code/camera_monitor/data/fishing
+#   WEB_FISHING_DATA     image datasets,  default <repo>/data/fishing
+#   WEB_AIS_DATA_DIR     AIS results,     default <repo>/web/app/data
 # =============================================================================
 set -euo pipefail
 

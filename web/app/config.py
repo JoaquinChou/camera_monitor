@@ -21,7 +21,7 @@ OUTPUT_DIR = Path(os.environ.get("WEB_OUTPUT_DIR", str(REPO_DIR / "output")))
 # Fishing image datasets (source images for the image-case gallery). The demo
 # does not need to know where the data physically lives: override WEB_FISHING_DATA.
 FISHING_DATA_DIR = Path(
-    os.environ.get("WEB_FISHING_DATA", "/home/jcx/code/camera_monitor/data/fishing")
+    os.environ.get("WEB_FISHING_DATA", str(REPO_DIR / "data" / "fishing"))
 )
 
 # Frontend static assets served under /static/.
